@@ -11,11 +11,11 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Servir arquivos estáticos da pasta
+// Servir arquivos estáticos da pasta (index.html, imagens, etc)
 app.use(express.static(__dirname));
 
-// Rota corrigida para entregar o index.html
-app.get('/*', (req, res) => {
+// Rota principal para a raiz do site
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
