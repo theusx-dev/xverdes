@@ -1,0 +1,19 @@
+{
+  "name": "xverdes-multiplayer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4"
+  },
+  "description": "1. Instale Node.js. 2. Abra o terminal nesta pasta. 3. Rode `npm install` 4. Rode `npm start` 5. Abra `http://localhost:3000` 6. Abra em duas abas/janelas e use o mesmo código de sala.",
+  "main": "server.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
