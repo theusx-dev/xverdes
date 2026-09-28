@@ -14,12 +14,12 @@ const io = new Server(server);
 // Servir arquivos estáticos da pasta
 app.use(express.static(__dirname));
 
-// Rota para entregar a página do jogo
-app.get('*', (req, res) => {
+// Rota corrigida para entregar o index.html
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Lógica de salas/jogadores do Socket.IO
+// Lógica do Socket.IO
 io.on('connection', (socket) => {
   console.log('Novo jogador conectado:', socket.id);
 
@@ -28,7 +28,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Porta dinâmica para o Render
+// Porta dinâmica do Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
