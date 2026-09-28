@@ -11,24 +11,28 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Servir arquivos estáticos da pasta (index.html, imagens, etc)
 app.use(express.static(__dirname));
 
-// Rota principal para a raiz do site
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Lógica do Socket.IO
+// Lógica de Salas no Socket.IO
 io.on('connection', (socket) => {
-  console.log('Novo jogador conectado:', socket.id);
+  console.log('Jogador conectado:', socket.id);
+
+  // Evento para criar/entrar na sala
+  socket.on('criarSala', (nomeSala) => {
+    socket.join(nomeSala);
+    console.log(`Jogador ${socket.id} entrou na sala: ${nomeSala}`);
+    io.to(nomeSala).emit('salaCriada', nomeSala);
+  });
 
   socket.on('disconnect', () => {
     console.log('Jogador desconectado:', socket.id);
   });
 });
 
-// Porta dinâmica do Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
