@@ -3,41 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Xverdes — Multiplayer & Solo</title>
+<title>Xverdes — Batalha de Tornados</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#06100d;color:#effff6;font-family:Arial,sans-serif;min-height:100vh}
-header{padding:18px 28px;border-bottom:1px solid #234c3c;display:flex;justify-content:space-between;align-items:center}
-.logo{font-size:30px;font-weight:900;letter-spacing:3px;color:#57ed9e}.online{color:#89b9a4}
+:root {
+  --bg-color: #06100d;
+  --card-bg: #0b2119;
+  --border-color: #2d624d;
+  --primary-color: #57ed9e;
+  --btn-bg: #123a2a;
+  --btn-hover: #1b573e;
+  --text-muted: #9cbcaf;
+  --input-bg: #07140f;
+}
+
+/* Temas dinâmicos */
+body.theme-vermelho {
+  --bg-color: #120606;
+  --card-bg: #210b0b;
+  --border-color: #622d2d;
+  --primary-color: #ff5757;
+  --btn-bg: #3a1212;
+  --btn-hover: #571b1b;
+  --text-muted: #bc9c9c;
+  --input-bg: #140707;
+}
+
+body.theme-rosa {
+  --bg-color: #12060e;
+  --card-bg: #210b1a;
+  --border-color: #622d55;
+  --primary-color: #ff57d8;
+  --btn-bg: #3a1232;
+  --btn-hover: #571b4b;
+  --text-muted: #bc9caa;
+  --input-bg: #140711;
+}
+
+body.theme-roxo {
+  --bg-color: #0d0612;
+  --card-bg: #180b21;
+  --border-color: #4c2d62;
+  --primary-color: #b557ff;
+  --btn-bg: #29123a;
+  --btn-hover: #3d1b57;
+  --text-muted: #aa9cbc;
+  --input-bg: #100714;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-color);color:#effff6;font-family:Arial,sans-serif;min-height:100vh;transition:0.3s}
+header{padding:18px 28px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:30px;font-weight:900;letter-spacing:3px;color:var(--primary-color)}.online{color:var(--text-muted)}
 .screen{max-width:1050px;margin:auto;padding:35px 20px}
-.card{background:#0b2119;border:1px solid #2d624d;border-radius:22px;padding:28px;box-shadow:0 20px 60px #0007}
-h1{font-size:clamp(42px,7vw,72px);margin:5px 0}.muted{color:#9cbcaf}
-input,select{width:100%;padding:15px;margin:8px 0;background:#07140f;color:white;border:1px solid #315f4d;border-radius:10px;font-size:16px}
-button{padding:14px 18px;border:1px solid #438262;background:#123a2a;color:white;border-radius:11px;font-weight:900;cursor:pointer}
-button:hover:not(:disabled){background:#1b573e;transform:translateY(-1px)}button:disabled{opacity:.35;cursor:not-allowed}
-#lobby{max-width:520px;margin:50px auto}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.mode-btn{background:#164230;margin-bottom:10px;width:100%}
+.card{background:var(--card-bg);border:1px solid var(--border-color);border-radius:22px;padding:28px;box-shadow:0 20px 60px #0007}
+h1{font-size:clamp(42px,7vw,72px);margin:5px 0}.muted{color:var(--text-muted)}
+input,select{width:100%;padding:15px;margin:8px 0;background:var(--input-bg);color:white;border:1px solid var(--border-color);border-radius:10px;font-size:16px}
+button{padding:14px 18px;border:1px solid var(--border-color);background:var(--btn-bg);color:white;border-radius:11px;font-weight:900;cursor:pointer;transition:0.2s}
+button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1px)}button:disabled{opacity:.35;cursor:not-allowed}
+#lobby{max-width:520px;margin:30px auto}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mode-btn{background:var(--btn-bg);margin-bottom:10px;width:100%}
 .arena{display:grid;grid-template-columns:1.2fr 1.4fr 1.2fr;gap:15px;align-items:center}
 .team-container{display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto}
-.player{text-align:center;padding:12px;border:1px solid #2d624d;border-radius:14px;background:#081812}
-.name{font-size:16px;font-weight:900}.hp{height:12px;background:#172a22;border-radius:20px;overflow:hidden;margin:6px 0}.bar{height:100%;width:100%;background:#5cf1a1;transition:.25s}
-.points{font-size:18px;font-weight:900;color:#75ffb2}
-#click{height:250px;border-radius:30px;border:2px dashed #3d8565;background:radial-gradient(circle,#153e2d,#07150f);font-size:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;user-select:none}
-.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px}.small{font-size:13px;color:#91ad9f}
-#feed{height:25px;text-align:center;color:#8bf5bb;margin:15px}
+.player{text-align:center;padding:12px;border:1px solid var(--border-color);border-radius:14px;background:var(--input-bg)}
+.name{font-size:16px;font-weight:900}.hp{height:12px;background:#172a22;border-radius:20px;overflow:hidden;margin:6px 0}.bar{height:100%;width:100%;background:var(--primary-color);transition:.25s}
+.points{font-size:18px;font-weight:900;color:var(--primary-color)}
+#click{height:250px;border-radius:30px;border:2px dashed var(--border-color);background:radial-gradient(circle,var(--card-bg),var(--input-bg));font-size:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;user-select:none}
+.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px}.small{font-size:13px;color:var(--text-muted)}
+#feed{height:25px;text-align:center;color:var(--primary-color);margin:15px}
 .tornado{position:fixed;pointer-events:none;font-size:var(--size);left:var(--x);top:var(--y);z-index:9;animation:spin 1s linear infinite,rise 2.5s ease-out forwards}
-.skin-default{filter:drop-shadow(0 0 22px #63ffac)}
+.skin-default{filter:drop-shadow(0 0 22px var(--primary-color))}
 .skin-galaxy{filter:drop-shadow(0 0 22px #a855f7) hue-rotate(180deg)}
 .skin-emerald{filter:drop-shadow(0 0 22px #10b981) saturate(3)}
 .skin-inferno{filter:drop-shadow(0 0 22px #ef4444) hue-rotate(280deg)}
 .skin-gold{filter:drop-shadow(0 0 22px #eab308) sepia(1)}
 @keyframes spin{to{transform:rotate(360deg)}}@keyframes rise{to{opacity:0;transform:translateY(-230px) scale(1.5)}}
 .hidden{display:none!important}
-.inventory{background:#07140f;border:1px solid #315f4d;border-radius:12px;padding:12px;margin-top:15px}
+.inventory, .settings-panel{background:var(--input-bg);border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-top:15px}
+.header-actions{display:flex;gap:10px}
 @media(max-width:750px){.arena{grid-template-columns:1fr}#click{height:180px}.row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header><div class="logo">XVERDES</div><div class="online" id="status">● Offline</div></header>
+<header>
+  <div class="logo">XVERDES</div>
+  <div class="header-actions">
+    <button id="toggleSettingsBtn">⚙️ Configurações</button>
+    <div class="online" id="status">● Offline</div>
+  </div>
+</header>
 
 <section id="lobby" class="card">
 <h1>Xverdes</h1><p class="muted">Batalha de Tornados</p>
@@ -46,6 +99,7 @@ button:hover:not(:disabled){background:#1b573e;transform:translateY(-1px)}button
 <label class="small">Modo de Jogo:</label>
 <select id="gameMode">
   <option value="multiplayer">Multiplayer Online (Até 5v5)</option>
+  <option value="bots">Vs Bots 🤖 (Fácil, Médio, Difícil)</option>
   <option value="solo">Modo Solo (Treino & Skins)</option>
 </select>
 
@@ -64,6 +118,16 @@ button:hover:not(:disabled){background:#1b573e;transform:translateY(-1px)}button
   </div>
 </div>
 
+<div id="botControls" class="hidden">
+  <label class="small">Dificuldade dos Bots:</label>
+  <select id="botDifficulty">
+    <option value="easy">Fácil 🟢</option>
+    <option value="medium">Médio 🟡</option>
+    <option value="hard">Difícil 🔴</option>
+  </select>
+  <button id="startBots" class="mode-btn">Iniciar Partida vs Bot 🤖</button>
+</div>
+
 <div id="soloControls" class="hidden">
   <button id="startSolo" class="mode-btn">Jogar Solo 🎯</button>
 </div>
@@ -74,13 +138,24 @@ button:hover:not(:disabled){background:#1b573e;transform:translateY(-1px)}button
     <option value="skin-default">Tornado Padrão 🟢</option>
   </select>
 </div>
+
+<!-- Painel de Configurações -->
+<div id="settingsPanel" class="settings-panel hidden">
+  <div class="small" style="font-weight:bold;margin-bottom:8px">⚙️ Tema e Aparência:</div>
+  <select id="themeSelect">
+    <option value="xverdespro">Xverdes Pro (Verdes) 💚</option>
+    <option value="vermelho">Vermelho 🔴</option>
+    <option value="rosa">Rosa 🩷</option>
+    <option value="roxo">Roxo 🟣</option>
+  </select>
+</div>
 </section>
 
 <section id="game" class="screen hidden">
 <div class="arena">
   <div class="team-container" id="teamA"></div>
   <div>
-    <div id="click">🖱️<br><span id="clickLabel">Clique para ganhar pontos</span></div>
+    <div id="click">🖱️<br><span id="clickLabel">Clique para ganhar <span class="unit-label">pontos</span></span></div>
     <div id="feed">Aguardando...</div>
   </div>
   <div class="team-container" id="teamB"></div>
@@ -98,7 +173,9 @@ button:hover:not(:disabled){background:#1b573e;transform:translateY(-1px)}button
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
-let me = null, isSolo = false, soloClicks = 0, equippedSkin = "skin-default";
+let me = null, isSolo = false, isBotMode = false, soloClicks = 0, equippedSkin = "skin-default";
+let currentTheme = localStorage.getItem("xverdes_theme") || "xverdespro";
+let botInterval = null, botPlayer = null, humanPlayer = null;
 
 const skinNames = {
   "skin-default": "Tornado Padrão 🟢",
@@ -109,8 +186,21 @@ const skinNames = {
 };
 
 let unlockedSkins = JSON.parse(localStorage.getItem("xverdes_skins")) || ["skin-default"];
-
 const $ = id => document.getElementById(id);
+
+// Configuração e Temas
+function applyTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem("xverdes_theme", theme);
+  document.body.className = theme === "xverdespro" ? "" : `theme-${theme}`;
+  
+  const unitText = theme === "xverdespro" ? "verdes" : "pontos";
+  document.querySelectorAll(".unit-label").forEach(el => el.textContent = unitText);
+}
+applyTheme(currentTheme);
+$("themeSelect").value = currentTheme;
+$("themeSelect").onchange = e => applyTheme(e.target.value);
+$("toggleSettingsBtn").onclick = () => $("settingsPanel").classList.toggle("hidden");
 
 function updateSkinDropdown() {
   const select = $("skinSelect");
@@ -124,22 +214,16 @@ function updateSkinDropdown() {
   });
   $("skinCount").textContent = unlockedSkins.length;
 }
-
 updateSkinDropdown();
 
 $("gameMode").onchange = (e) => {
-  if (e.target.value === "solo") {
-    $("multiControls").classList.add("hidden");
-    $("soloControls").classList.remove("hidden");
-  } else {
-    $("multiControls").classList.remove("hidden");
-    $("soloControls").classList.add("hidden");
-  }
+  const val = e.target.value;
+  $("multiControls").classList.toggle("hidden", val !== "multiplayer");
+  $("botControls").classList.toggle("hidden", val !== "bots");
+  $("soloControls").classList.toggle("hidden", val !== "solo");
 };
 
-$("skinSelect").onchange = (e) => { 
-  equippedSkin = e.target.value; 
-};
+$("skinSelect").onchange = (e) => { equippedSkin = e.target.value; };
 
 socket.on("connect", () => { $("status").textContent = "● Conectado"; });
 socket.on("disconnect", () => { $("status").textContent = "● Desconectado"; });
@@ -157,67 +241,162 @@ $("create").onclick = () => {
 };
 $("join").onclick = join;
 
+// Modo Solo
 $("startSolo").onclick = () => {
-  isSolo = true;
-  $("lobby").classList.add("hidden"); 
-  $("game").classList.remove("hidden");
+  isSolo = true; isBotMode = false;
+  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
   $("actionControls").classList.add("hidden");
-  $("clickLabel").textContent = "Cliques no Solo: 0 / 100";
+  $("clickLabel").innerHTML = `Cliques no Solo: 0 / 100`;
   $("feed").textContent = "Modo Solo Ativo! A cada 100 cliques ganhe uma Skin!";
   $("teamA").innerHTML = `<div class="player"><div class="name">${$("name").value.trim() || 'Jogador'}</div></div>`;
   $("teamB").innerHTML = "";
 };
 
+// Modo Bots
+$("startBots").onclick = () => {
+  isBotMode = true; isSolo = false;
+  const diff = $("botDifficulty").value;
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pontos";
+  
+  humanPlayer = { name: $("name").value.trim() || 'Jogador', hp: 100, points: 0, team: 'A' };
+  botPlayer = { name: `Bot (${diff.toUpperCase()}) 🤖`, hp: 100, points: 0, team: 'B' };
+
+  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
+  $("actionControls").classList.remove("hidden");
+  $("clickLabel").innerHTML = `Clique para ganhar <span class="unit-label">${unitText}</span>`;
+  $("feed").textContent = "⚔️ BATALHA VS BOT INICIADA!";
+
+  renderBotGame();
+
+  // Velocidade dos cliques do Bot por Dificuldade
+  const speeds = { easy: 1000, medium: 500, hard: 200 };
+  clearInterval(botInterval);
+  botInterval = setInterval(() => {
+    if (!isBotMode || humanPlayer.hp <= 0 || botPlayer.hp <= 0) return;
+    botPlayer.points += 1;
+    
+    // IA do bot para soltar ataques
+    if (botPlayer.points >= 300 && Math.random() < 0.7) {
+      botSummon("grande");
+    } else if (botPlayer.points >= 100 && Math.random() < 0.5) {
+      botSummon("medio");
+    } else if (botPlayer.points >= 25 && Math.random() < 0.4) {
+      botSummon("pequeno");
+    }
+    renderBotGame();
+  }, speeds[diff]);
+};
+
+function botSummon(type) {
+  const costs = { pequeno: 25, medio: 100, grande: 300 };
+  const damages = { pequeno: 15, medio: 35, grande: 80 };
+  
+  if (botPlayer.points >= costs[type]) {
+    botPlayer.points -= costs[type];
+    humanPlayer.hp = Math.max(0, humanPlayer.hp - damages[type]);
+    spawnTornado({ size: costs[type] / 2 + 20, skin: 'skin-inferno' });
+    
+    if (humanPlayer.hp <= 0) {
+      $("feed").textContent = "🏆 Bot venceu a batalha!";
+      clearInterval(botInterval);
+    }
+  }
+}
+
+function renderBotGame() {
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pts";
+  $("teamA").innerHTML = `
+    <div class="player">
+      <div class="name">${humanPlayer.name}</div>
+      <div class="hp"><div class="bar" style="width:${humanPlayer.hp}%"></div></div>
+      <div class="points">${humanPlayer.points} ${unitText}</div>
+    </div>`;
+  $("teamB").innerHTML = `
+    <div class="player">
+      <div class="name">${botPlayer.name}</div>
+      <div class="hp"><div class="bar" style="width:${botPlayer.hp}%"></div></div>
+      <div class="points">${botPlayer.points} ${unitText}</div>
+    </div>`;
+
+  document.querySelectorAll("#actionControls button").forEach(x => {
+    x.disabled = humanPlayer.points < +x.dataset.cost || humanPlayer.hp <= 0;
+  });
+}
+
 $("click").onclick = () => {
   if (isSolo) {
     soloClicks++;
-    $("clickLabel").textContent = `Cliques no Solo: ${soloClicks} / 100`;
+    $("clickLabel").innerHTML = `Cliques no Solo: ${soloClicks} / 100`;
     spawnTornado({ size: 50, skin: equippedSkin });
-    if (soloClicks % 100 === 0) {
-      unlockRandomSkin();
+    if (soloClicks % 100 === 0) unlockRandomSkin();
+  } else if (isBotMode) {
+    if (humanPlayer.hp > 0) {
+      humanPlayer.points += 1;
+      renderBotGame();
     }
   } else {
     socket.emit("click");
   }
 };
 
+document.querySelectorAll("#actionControls button").forEach(btn => {
+  btn.onclick = () => {
+    if (isBotMode) {
+      const type = btn.dataset.type;
+      const costs = { pequeno: 25, medio: 100, grande: 300 };
+      const damages = { pequeno: 15, medio: 35, grande: 80 };
+      
+      if (humanPlayer.points >= costs[type] && botPlayer.hp > 0) {
+        humanPlayer.points -= costs[type];
+        botPlayer.hp = Math.max(0, botPlayer.hp - damages[type]);
+        spawnTornado({ size: costs[type] / 2 + 20, skin: equippedSkin });
+        
+        if (botPlayer.hp <= 0) {
+          $("feed").textContent = "🏆 Você venceu o Bot!";
+          clearInterval(botInterval);
+        }
+        renderBotGame();
+      }
+    } else {
+      socket.emit("summon", { type: btn.dataset.type, skin: equippedSkin });
+    }
+  };
+});
+
 function unlockRandomSkin() {
   const allSkins = ["skin-galaxy", "skin-emerald", "skin-inferno", "skin-gold"];
   const locked = allSkins.filter(s => !unlockedSkins.includes(s));
-  
   if (locked.length === 0) {
     $("feed").textContent = "🎉 Você já possui todas as skins!";
     return;
   }
-  
   const won = locked[Math.floor(Math.random() * locked.length)];
   unlockedSkins.push(won);
-  
   localStorage.setItem("xverdes_skins", JSON.stringify(unlockedSkins));
-  
   updateSkinDropdown();
   alert(`🎉 PARABÉNS! Você ganhou a skin: ${skinNames[won]}`);
 }
 
 socket.on("joined", data => {
-  isSolo = false;
+  isSolo = false; isBotMode = false;
   me = data.player;
-  $("lobby").classList.add("hidden"); 
-  $("game").classList.remove("hidden");
+  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
   $("actionControls").classList.remove("hidden");
-  $("clickLabel").textContent = "Clique para ganhar pontos";
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pontos";
+  $("clickLabel").innerHTML = `Clique para ganhar <span class="unit-label">${unitText}</span>`;
 });
 
 function render(data) {
-  if (isSolo) return;
+  if (isSolo || isBotMode) return;
   const teamA = data.players.filter(p => p.team === 'A');
   const teamB = data.players.filter(p => p.team === 'B');
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pts";
   
   const renderTeam = (list) => list.map(p => `
     <div class="player">
       <div class="name">${p.name}</div>
       <div class="hp"><div class="bar" style="width:${p.hp}%"></div></div>
-      <div class="points">${p.points} pts</div>
+      <div class="points">${p.points} ${unitText}</div>
     </div>
   `).join('');
 
@@ -231,10 +410,6 @@ function render(data) {
 
 socket.on("room_state", render);
 socket.on("players_update", render);
-
-document.querySelectorAll("#actionControls button").forEach(btn => {
-  btn.onclick = () => socket.emit("summon", { type: btn.dataset.type, skin: equippedSkin });
-});
 
 function spawnTornado(t) {
   const el = document.createElement("div");
@@ -257,7 +432,8 @@ socket.on("battle_end", d => $("feed").textContent = "🏆 " + d.winnerText + " 
 socket.on("error_message", m => alert(m));
 
 $("leaveBtn").onclick = () => {
-  isSolo = false;
+  isSolo = false; isBotMode = false;
+  clearInterval(botInterval);
   $("game").classList.add("hidden");
   $("lobby").classList.remove("hidden");
   updateSkinDropdown();
