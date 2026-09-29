@@ -1,45 +1,51 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// Armazenamento das salas em memória
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
 const rooms = {};
 
-// Custos e danos das habilidades
 const COSTS = { pequeno: 25, medio: 100, grande: 300 };
 const DAMAGES = { pequeno: 15, medio: 35, grande: 80 };
 
 io.on("connection", (socket) => {
-
-  // Entrar ou Criar Sala
   socket.on("join_room", ({ name, roomId, maxPerTeam }) => {
     if (!roomId) return socket.emit("error_message", "Código da sala é obrigatório.");
 
-    // Se a sala não existir, cria uma nova
     if (!rooms[roomId]) {
       rooms[roomId] = {
         id: roomId,
         maxPerTeam: maxPerTeam || 1,
         players: [],
-        status: "waiting" // waiting, playing, ended
+        status: "waiting"
       };
     }
 
     const room = rooms[roomId];
 
-    // Verificar se a sala está cheia
     if (room.players.length >= room.maxPerTeam * 2) {
       return socket.emit("error_message", "Esta sala já está cheia!");
     }
 
-    // Definir time (A ou B) balanceado
     const countA = room.players.filter(p => p.team === "A").length;
     const countB = room.players.filter(p => p.team === "B").length;
     const team = countA <= countB ? "A" : "B";
@@ -58,7 +64,6 @@ io.on("connection", (socket) => {
 
     socket.emit("joined", { player, room });
 
-    // Iniciar partida se atingir o total de jogadores
     if (room.players.length === room.maxPerTeam * 2) {
       room.status = "playing";
       io.to(roomId).emit("battle_start");
@@ -67,7 +72,6 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("room_state", room);
   });
 
-  // Clique para ganhar pontos
   socket.on("click", () => {
     const room = rooms[socket.roomId];
     if (!room) return;
@@ -79,7 +83,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Invocação de Tornados
   socket.on("summon", ({ type, skin }) => {
     const room = rooms[socket.roomId];
     if (!room || room.status !== "playing") return;
@@ -90,25 +93,20 @@ io.on("connection", (socket) => {
 
     if (!player || player.hp <= 0 || player.points < cost) return;
 
-    // Desconta os pontos do atacante
     player.points -= cost;
 
-    // Encontra alvos vivos do time inimigo
     const enemies = room.players.filter(p => p.team !== player.team && p.hp > 0);
     if (enemies.length > 0) {
-      // Aplica dano a um inimigo aleatório do outro time
       const target = enemies[Math.floor(Math.random() * enemies.length)];
       target.hp = Math.max(0, target.hp - damage);
     }
 
-    // Dispara animação de tornado para todos na sala
     const sizes = { pequeno: 40, medio: 70, grande: 110 };
     io.to(room.id).emit("tornado", {
       size: sizes[type] || 50,
       skin: skin || "skin-default"
     });
 
-    // Verificar fim de jogo
     const teamAAlive = room.players.some(p => p.team === "A" && p.hp > 0);
     const teamBAlive = room.players.some(p => p.team === "B" && p.hp > 0);
 
@@ -121,7 +119,6 @@ io.on("connection", (socket) => {
     io.to(room.id).emit("players_update", room);
   });
 
-  // Desconexão do jogador
   socket.on("disconnect", () => {
     const room = rooms[socket.roomId];
     if (room) {
