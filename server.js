@@ -1,126 +1,138 @@
-import express from 'express';
-import http from 'http';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { Server } from 'socket.io';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
-app.use(express.static(__dirname));
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+app.use(express.static(path.join(__dirname, "public")));
+
+// Fallback para servir o index.html se não estiver dentro da pasta public
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 const rooms = {};
 
-const TORNADO_TYPES = {
-  pequeno: { cost: 25, damage: 15, size: 40 },
-  medio: { cost: 100, damage: 35, size: 70 },
-  grande: { cost: 300, damage: 80, size: 110 }
-};
+io.on("connection", (socket) => {
+  console.log("Novo jogador conectado:", socket.id);
 
-io.on('connection', (socket) => {
-  let currentRoom = null;
+  socket.on("join_room", ({ name, roomId, maxPerTeam }) => {
+    let room = rooms[roomId];
 
-  socket.on('join_room', ({ name, roomId, maxPerTeam = 1 }) => {
-    if (!roomId) return socket.emit('error_message', 'Código de sala inválido.');
-
-    if (!rooms[roomId]) {
-      rooms[roomId] = { players: [], maxPerTeam };
+    if (!room) {
+      room = {
+        id: roomId,
+        maxPerTeam: maxPerTeam || 1,
+        players: [],
+        status: "waiting"
+      };
+      rooms[roomId] = room;
     }
 
-    const room = rooms[roomId];
-    const totalMax = room.maxPerTeam * 2;
+    const teamACount = room.players.filter(p => p.team === 'A').length;
+    const teamBCount = room.players.filter(p => p.team === 'B').length;
+    let assignedTeam = 'A';
 
-    if (room.players.length >= totalMax) {
-      return socket.emit('error_message', 'Sala cheia!');
+    if (teamACount < room.maxPerTeam) {
+      assignedTeam = 'A';
+    } else if (teamBCount < room.maxPerTeam) {
+      assignedTeam = 'B';
+    } else {
+      socket.emit("error_message", "Sala cheia!");
+      return;
     }
 
-    currentRoom = roomId;
-    socket.join(roomId);
-
-    const teamA = room.players.filter(p => p.team === 'A').length;
-    const teamB = room.players.filter(p => p.team === 'B').length;
-    const assignedTeam = teamA <= teamB ? 'A' : 'B';
-
-    const player = {
+    const newPlayer = {
       id: socket.id,
-      name: name || 'Jogador',
+      name: name || "Jogador",
       team: assignedTeam,
       hp: 100,
       points: 0
     };
 
-    room.players.push(player);
+    room.players.push(newPlayer);
+    socket.join(roomId);
+    socket.roomId = roomId;
 
-    socket.emit('joined', { player, roomId });
-    io.to(roomId).emit('room_state', { players: room.players });
+    socket.emit("joined", { player: newPlayer, room });
+    io.to(roomId).emit("room_state", room);
 
-    if (room.players.length === totalMax) {
-      io.to(roomId).emit('battle_start');
+    if (room.players.filter(p => p.team === 'A').length >= room.maxPerTeam &&
+        room.players.filter(p => p.team === 'B').length >= room.maxPerTeam) {
+      room.status = "playing";
+      io.to(roomId).emit("battle_start");
     }
   });
 
-  socket.on('click', () => {
-    if (!currentRoom || !rooms[currentRoom]) return;
-    const room = rooms[currentRoom];
-    const player = room.players.find(p => p.id === socket.id);
+  socket.on("click", () => {
+    const roomId = socket.roomId;
+    const room = rooms[roomId];
+    if (!room) return;
 
+    const player = room.players.find(p => p.id === socket.id);
     if (player && player.hp > 0) {
       player.points += 1;
-      io.to(currentRoom).emit('players_update', { players: room.players });
+      io.to(roomId).emit("players_update", room);
     }
   });
 
-  socket.on('summon', ({ type, skin }) => {
-    if (!currentRoom || !rooms[currentRoom]) return;
-    const room = rooms[currentRoom];
-    const attacker = room.players.find(p => p.id === socket.id);
-    if (!attacker || attacker.hp <= 0) return;
+  socket.on("summon", ({ type, skin }) => {
+    const roomId = socket.roomId;
+    const room = rooms[roomId];
+    if (!room) return;
 
-    const tData = TORNADO_TYPES[type];
-    if (!tData || attacker.points < tData.cost) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || player.hp <= 0) return;
 
-    const enemies = room.players.filter(p => p.team !== attacker.team && p.hp > 0);
-    if (enemies.length === 0) return;
+    const costs = { pequeno: 25, medio: 100, grande: 300 };
+    const damages = { pequeno: 15, medio: 35, grande: 80 };
 
-    attacker.points -= tData.cost;
-    
-    const damagePerEnemy = Math.ceil(tData.damage / enemies.length);
-    enemies.forEach(e => {
-      e.hp = Math.max(0, e.hp - damagePerEnemy);
-    });
+    if (player.points >= costs[type]) {
+      player.points -= costs[type];
 
-    io.to(currentRoom).emit('tornado', {
-      type,
-      size: tData.size,
-      skin: skin || 'skin-default'
-    });
+      const enemyTeam = player.team === 'A' ? 'B' : 'A';
+      const enemies = room.players.filter(p => p.team === enemyTeam && p.hp > 0);
 
-    io.to(currentRoom).emit('players_update', { players: room.players });
+      if (enemies.length > 0) {
+        const target = enemies[Math.floor(Math.random() * enemies.length)];
+        target.hp = Math.max(0, target.hp - damages[type]);
+      }
 
-    const teamAAlive = room.players.some(p => p.team === 'A' && p.hp > 0);
-    const teamBAlive = room.players.some(p => p.team === 'B' && p.hp > 0);
+      io.to(roomId).emit("tornado", {
+        size: costs[type] / 2 + 20,
+        skin: skin || 'skin-default'
+      });
 
-    if (!teamAAlive || !teamBAlive) {
-      const winnerText = teamAAlive ? 'Time A' : 'Time B';
-      io.to(currentRoom).emit('battle_end', { winnerText });
+      io.to(roomId).emit("players_update", room);
+
+      const teamAAlive = room.players.some(p => p.team === 'A' && p.hp > 0);
+      const teamBAlive = room.players.some(p => p.team === 'B' && p.hp > 0);
+
+      if (!teamAAlive || !teamBAlive) {
+        const winnerText = teamAAlive ? "Time A" : "Time B";
+        io.to(roomId).emit("battle_end", { winnerText });
+      }
     }
   });
 
-  socket.on('disconnect', () => {
-    if (currentRoom && rooms[currentRoom]) {
-      rooms[currentRoom].players = rooms[currentRoom].players.filter(p => p.id !== socket.id);
-      io.to(currentRoom).emit('players_update', { players: rooms[currentRoom].players });
-
-      if (rooms[currentRoom].players.length === 0) {
-        delete rooms[currentRoom];
+  socket.on("disconnect", () => {
+    const roomId = socket.roomId;
+    const room = rooms[roomId];
+    if (room) {
+      room.players = room.players.filter(p => p.id !== socket.id);
+      if (room.players.length === 0) {
+        delete rooms[roomId];
+      } else {
+        io.to(roomId).emit("players_update", room);
       }
     }
   });
