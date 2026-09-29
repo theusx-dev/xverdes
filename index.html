@@ -99,7 +99,7 @@ button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1p
 <label class="small">Modo de Jogo:</label>
 <select id="gameMode">
   <option value="multiplayer">Multiplayer Online (Até 5v5)</option>
-  <option value="bots">Vs Bots 🤖 (Fácil, Médio, Difícil)</option>
+  <option value="bots">Vs Bots 🤖 (Fácil, Médio, Difícil, Impossível)</option>
   <option value="solo">Modo Solo (Treino & Skins)</option>
 </select>
 
@@ -124,6 +124,7 @@ button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1p
     <option value="easy">Fácil 🟢</option>
     <option value="medium">Médio 🟡</option>
     <option value="hard">Difícil 🔴</option>
+    <option value="impossible">IMPOSSÍVEL 💀</option>
   </select>
   <button id="startBots" class="mode-btn">Iniciar Partida vs Bot 🤖</button>
 </div>
@@ -268,20 +269,31 @@ $("startBots").onclick = () => {
 
   renderBotGame();
 
-  // Velocidade dos cliques do Bot por Dificuldade
-  const speeds = { easy: 1000, medium: 500, hard: 200 };
+  // Velocidade dos cliques do Bot por Dificuldade (Easy: 1s, Medium: 500ms, Hard: 200ms, Impossible: 100ms)
+  const speeds = { easy: 1000, medium: 500, hard: 200, impossible: 100 };
   clearInterval(botInterval);
   botInterval = setInterval(() => {
     if (!isBotMode || humanPlayer.hp <= 0 || botPlayer.hp <= 0) return;
     botPlayer.points += 1;
     
     // IA do bot para soltar ataques
-    if (botPlayer.points >= 300 && Math.random() < 0.7) {
-      botSummon("grande");
-    } else if (botPlayer.points >= 100 && Math.random() < 0.5) {
-      botSummon("medio");
-    } else if (botPlayer.points >= 25 && Math.random() < 0.4) {
-      botSummon("pequeno");
+    if (diff === "impossible") {
+      // Lógica agressiva do nível Impossível
+      if (botPlayer.points >= 300) {
+        botSummon("grande");
+      } else if (botPlayer.points >= 100 && Math.random() < 0.8) {
+        botSummon("medio");
+      } else if (botPlayer.points >= 25 && Math.random() < 0.6) {
+        botSummon("pequeno");
+      }
+    } else {
+      if (botPlayer.points >= 300 && Math.random() < 0.7) {
+        botSummon("grande");
+      } else if (botPlayer.points >= 100 && Math.random() < 0.5) {
+        botSummon("medio");
+      } else if (botPlayer.points >= 25 && Math.random() < 0.4) {
+        botSummon("pequeno");
+      }
     }
     renderBotGame();
   }, speeds[diff]);
@@ -428,7 +440,7 @@ socket.on("tornado", t => {
 });
 
 socket.on("battle_start", () => $("feed").textContent = "⚔️ BATALHA INICIADA!");
-socket.on("battle_end", d => $("feed").textContent = "🏆 " + d.winnerText + " venceu a batalha!");
+socket.on("battle_end", d => $("feed").textContent = "🏆 " + d.winnerText + " venceu a batalha!";
 socket.on("error_message", m => alert(m));
 
 $("leaveBtn").onclick = () => {
