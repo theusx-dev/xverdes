@@ -97,9 +97,9 @@ button:hover:not(:disabled){background:#1b573e;transform:translateY(-1px)}button
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const socket=io();
-let me=null, isSolo=false, soloClicks=0, equippedSkin="skin-default";
-const unlockedSkins = ["skin-default"];
+const socket = io();
+let me = null, isSolo = false, soloClicks = 0, equippedSkin = "skin-default";
+
 const skinNames = {
   "skin-default": "Tornado Padrão 🟢",
   "skin-galaxy": "Tornado Galaxy 🌌",
@@ -108,10 +108,27 @@ const skinNames = {
   "skin-gold": "Tornado Gold 👑"
 };
 
-const $=id=>document.getElementById(id);
+let unlockedSkins = JSON.parse(localStorage.getItem("xverdes_skins")) || ["skin-default"];
+
+const $ = id => document.getElementById(id);
+
+function updateSkinDropdown() {
+  const select = $("skinSelect");
+  select.innerHTML = "";
+  unlockedSkins.forEach(skinKey => {
+    const opt = document.createElement("option");
+    opt.value = skinKey;
+    opt.textContent = skinNames[skinKey] || skinKey;
+    if (skinKey === equippedSkin) opt.selected = true;
+    select.appendChild(opt);
+  });
+  $("skinCount").textContent = unlockedSkins.length;
+}
+
+updateSkinDropdown();
 
 $("gameMode").onchange = (e) => {
-  if(e.target.value === "solo"){
+  if (e.target.value === "solo") {
     $("multiControls").classList.add("hidden");
     $("soloControls").classList.remove("hidden");
   } else {
@@ -120,37 +137,43 @@ $("gameMode").onchange = (e) => {
   }
 };
 
-$("skinSelect").onchange = (e) => { equippedSkin = e.target.value; };
-
-socket.on("connect",()=>{ $("status").textContent="● Conectado"; });
-socket.on("disconnect",()=>{ $("status").textContent="● Desconectado"; });
-
-function join(){
-  const name=$("name").value.trim()||"Jogador";
-  const room=$("room").value.trim().toUpperCase();
-  const maxPerTeam=$("teamSize").value;
-  socket.emit("join_room",{name, roomId:room, maxPerTeam: parseInt(maxPerTeam)});
-}
-$("create").onclick=()=>{ if(!$("room").value.trim()) $("room").value=Math.random().toString(36).slice(2,8).toUpperCase(); join(); };
-$("join").onclick=join;
-
-// Modo Solo
-$("startSolo").onclick=()=>{
-  isSolo=true;
-  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
-  $("actionControls").classList.add("hidden");
-  $("clickLabel").textContent="Cliques no Solo: 0 / 100";
-  $("feed").textContent="Modo Solo Active! A cada 100 cliques ganhe uma Skin!";
-  $("teamA").innerHTML=`<div class="player"><div class="name">${$("name").value.trim()||'Jogador'}</div></div>`;
-  $("teamB").innerHTML="";
+$("skinSelect").onchange = (e) => { 
+  equippedSkin = e.target.value; 
 };
 
-$("click").onclick=()=>{
-  if(isSolo){
+socket.on("connect", () => { $("status").textContent = "● Conectado"; });
+socket.on("disconnect", () => { $("status").textContent = "● Desconectado"; });
+
+function join() {
+  const name = $("name").value.trim() || "Jogador";
+  const room = $("room").value.trim().toUpperCase();
+  const maxPerTeam = $("teamSize").value;
+  socket.emit("join_room", { name, roomId: room, maxPerTeam: parseInt(maxPerTeam) });
+}
+
+$("create").onclick = () => { 
+  if (!$("room").value.trim()) $("room").value = Math.random().toString(36).slice(2,8).toUpperCase(); 
+  join(); 
+};
+$("join").onclick = join;
+
+$("startSolo").onclick = () => {
+  isSolo = true;
+  $("lobby").classList.add("hidden"); 
+  $("game").classList.remove("hidden");
+  $("actionControls").classList.add("hidden");
+  $("clickLabel").textContent = "Cliques no Solo: 0 / 100";
+  $("feed").textContent = "Modo Solo Ativo! A cada 100 cliques ganhe uma Skin!";
+  $("teamA").innerHTML = `<div class="player"><div class="name">${$("name").value.trim() || 'Jogador'}</div></div>`;
+  $("teamB").innerHTML = "";
+};
+
+$("click").onclick = () => {
+  if (isSolo) {
     soloClicks++;
-    $("clickLabel").textContent=`Cliques no Solo: ${soloClicks} / 100`;
-    spawnTornado({size:50, skin:equippedSkin});
-    if(soloClicks % 100 === 0){
+    $("clickLabel").textContent = `Cliques no Solo: ${soloClicks} / 100`;
+    spawnTornado({ size: 50, skin: equippedSkin });
+    if (soloClicks % 100 === 0) {
       unlockRandomSkin();
     }
   } else {
@@ -158,35 +181,35 @@ $("click").onclick=()=>{
   }
 };
 
-function unlockRandomSkin(){
+function unlockRandomSkin() {
   const allSkins = ["skin-galaxy", "skin-emerald", "skin-inferno", "skin-gold"];
   const locked = allSkins.filter(s => !unlockedSkins.includes(s));
-  if(locked.length === 0){
+  
+  if (locked.length === 0) {
     $("feed").textContent = "🎉 Você já possui todas as skins!";
     return;
   }
+  
   const won = locked[Math.floor(Math.random() * locked.length)];
   unlockedSkins.push(won);
-  $("skinCount").textContent = unlockedSkins.length;
   
-  const opt = document.createElement("option");
-  opt.value = won;
-  opt.textContent = skinNames[won];
-  $("skinSelect").appendChild(opt);
+  localStorage.setItem("xverdes_skins", JSON.stringify(unlockedSkins));
   
+  updateSkinDropdown();
   alert(`🎉 PARABÉNS! Você ganhou a skin: ${skinNames[won]}`);
 }
 
-socket.on("joined",data=>{
-  isSolo=false;
-  me=data.player;
-  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
+socket.on("joined", data => {
+  isSolo = false;
+  me = data.player;
+  $("lobby").classList.add("hidden"); 
+  $("game").classList.remove("hidden");
   $("actionControls").classList.remove("hidden");
-  $("clickLabel").textContent="Clique para ganhar pontos";
+  $("clickLabel").textContent = "Clique para ganhar pontos";
 });
 
-function render(data){
-  if(isSolo) return;
+function render(data) {
+  if (isSolo) return;
   const teamA = data.players.filter(p => p.team === 'A');
   const teamB = data.players.filter(p => p.team === 'B');
   
@@ -202,7 +225,7 @@ function render(data){
   $("teamB").innerHTML = teamB.length ? renderTeam(teamB) : '<div class="player"><div class="name">Aguardando time rival...</div></div>';
   
   const mine = data.players.find(p => p.id === me?.id);
-  if(mine) me = {...me, ...mine};
+  if (mine) me = { ...me, ...mine };
   document.querySelectorAll("#actionControls button").forEach(x => x.disabled = !mine || mine.points < +x.dataset.cost);
 }
 
@@ -213,11 +236,11 @@ document.querySelectorAll("#actionControls button").forEach(btn => {
   btn.onclick = () => socket.emit("summon", { type: btn.dataset.type, skin: equippedSkin });
 });
 
-function spawnTornado(t){
+function spawnTornado(t) {
   const el = document.createElement("div");
   el.className = `tornado ${t.skin || 'skin-default'}`;
   el.textContent = "🌪️";
-  el.style.setProperty("--size", (t.size||50) + "px");
+  el.style.setProperty("--size", (t.size || 50) + "px");
   el.style.setProperty("--x", (25 + Math.random() * 50) + "vw");
   el.style.setProperty("--y", (35 + Math.random() * 30) + "vh");
   document.body.appendChild(el);
@@ -233,7 +256,12 @@ socket.on("battle_start", () => $("feed").textContent = "⚔️ BATALHA INICIADA
 socket.on("battle_end", d => $("feed").textContent = "🏆 " + d.winnerText + " venceu a batalha!");
 socket.on("error_message", m => alert(m));
 
-$("leaveBtn").onclick = () => location.reload();
+$("leaveBtn").onclick = () => {
+  isSolo = false;
+  $("game").classList.add("hidden");
+  $("lobby").classList.remove("hidden");
+  updateSkinDropdown();
+};
 </script>
 </body>
 </html>
