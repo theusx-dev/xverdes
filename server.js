@@ -45,7 +45,6 @@ io.on('connection', (socket) => {
     currentRoom = roomId;
     socket.join(roomId);
 
-    // Divisão automática de times (A ou B)
     const teamA = room.players.filter(p => p.team === 'A').length;
     const teamB = room.players.filter(p => p.team === 'B').length;
     const assignedTeam = teamA <= teamB ? 'A' : 'B';
@@ -93,7 +92,6 @@ io.on('connection', (socket) => {
 
     attacker.points -= tData.cost;
     
-    // Divide o dano entre o time inimigo
     const damagePerEnemy = Math.ceil(tData.damage / enemies.length);
     enemies.forEach(e => {
       e.hp = Math.max(0, e.hp - damagePerEnemy);
@@ -107,7 +105,6 @@ io.on('connection', (socket) => {
 
     io.to(currentRoom).emit('players_update', { players: room.players });
 
-    // Verifica se algum time foi eliminado
     const teamAAlive = room.players.some(p => p.team === 'A' && p.hp > 0);
     const teamBAlive = room.players.some(p => p.team === 'B' && p.hp > 0);
 
