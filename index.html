@@ -16,7 +16,6 @@
   --input-bg: #07140f;
 }
 
-/* Temas dinâmicos */
 body.theme-vermelho {
   --bg-color: #120606;
   --card-bg: #210b0b;
@@ -139,7 +138,6 @@ button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1p
   </select>
 </div>
 
-<!-- Painel de Configurações -->
 <div id="settingsPanel" class="settings-panel hidden">
   <div class="small" style="font-weight:bold;margin-bottom:8px">⚙️ Tema e Aparência:</div>
   <select id="themeSelect">
@@ -188,7 +186,6 @@ const skinNames = {
 let unlockedSkins = JSON.parse(localStorage.getItem("xverdes_skins")) || ["skin-default"];
 const $ = id => document.getElementById(id);
 
-// Configuração e Temas
 function applyTheme(theme) {
   currentTheme = theme;
   localStorage.setItem("xverdes_theme", theme);
@@ -241,7 +238,6 @@ $("create").onclick = () => {
 };
 $("join").onclick = join;
 
-// Modo Solo
 $("startSolo").onclick = () => {
   isSolo = true; isBotMode = false;
   $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
@@ -252,7 +248,6 @@ $("startSolo").onclick = () => {
   $("teamB").innerHTML = "";
 };
 
-// Modo Bots
 $("startBots").onclick = () => {
   isBotMode = true; isSolo = false;
   const diff = $("botDifficulty").value;
@@ -268,14 +263,12 @@ $("startBots").onclick = () => {
 
   renderBotGame();
 
-  // Velocidade dos cliques do Bot por Dificuldade
   const speeds = { easy: 1000, medium: 500, hard: 200 };
   clearInterval(botInterval);
   botInterval = setInterval(() => {
     if (!isBotMode || humanPlayer.hp <= 0 || botPlayer.hp <= 0) return;
     botPlayer.points += 1;
     
-    // IA do bot para soltar ataques
     if (botPlayer.points >= 300 && Math.random() < 0.7) {
       botSummon("grande");
     } else if (botPlayer.points >= 100 && Math.random() < 0.5) {
@@ -344,7 +337,6 @@ document.querySelectorAll("#actionControls button").forEach(btn => {
     if (isBotMode) {
       const type = btn.dataset.type;
       const costs = { pequeno: 25, medio: 100, grande: 300 };
-      const damages = { pequeno: 15, medio: 35, grande: 80 };
       
       if (humanPlayer.points >= costs[type] && botPlayer.hp > 0) {
         humanPlayer.points -= costs[type];
