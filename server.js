@@ -14,7 +14,6 @@ const server = http.createServer(app);
 // Configuração do caminho da pasta public
 const publicPath = path.join(__dirname, "public");
 
-// Verifica se a pasta public existe no servidor
 if (!fs.existsSync(publicPath)) {
   console.error("❌ ERRO: A pasta 'public' não existe. Crie uma pasta chamada 'public' e coloque o 'index.html' dentro dela.");
 }
@@ -26,10 +25,8 @@ const io = new Server(server, {
   }
 });
 
-// Serve os arquivos estáticos (HTML, CSS, JS)
 app.use(express.static(publicPath));
 
-// Rota principal para garantir a entrega do index.html
 app.get("*", (req, res) => {
   const indexPath = path.join(publicPath, "index.html");
   if (fs.existsSync(indexPath)) {
@@ -41,7 +38,7 @@ app.get("*", (req, res) => {
 
 const rooms = {};
 const tourneys = {};
-let matchmakingQueue = []; // Fila de espera para achar partidas automaticamente
+let matchmakingQueue = [];
 
 const COSTS = { pequeno: 25, medio: 100, grande: 300 };
 const DAMAGES = { pequeno: 15, medio: 35, grande: 80 };
@@ -58,9 +55,8 @@ function getRankTitle(mmr) {
 
 io.on("connection", (socket) => {
 
-  // --- FILA DE MATCHMAKING (ACHAR PARTIDA SEM CÓDIGO) ---
+  // --- FILA DE MATCHMAKING (ACHAR PARTIDA) ---
   socket.on("find_match", ({ name, mmr }) => {
-    // Evita duplicar o mesmo jogador na fila
     if (matchmakingQueue.some(p => p.id === socket.id)) return;
 
     const playerWaiting = {
@@ -73,7 +69,6 @@ io.on("connection", (socket) => {
     matchmakingQueue.push(playerWaiting);
     socket.emit("queue_status", { inQueue: true, message: "Procurando oponente..." });
 
-    // Se houver pelo menos 2 jogadores na fila, cria a partida automaticamente
     if (matchmakingQueue.length >= 2) {
       const p1 = matchmakingQueue.shift();
       const p2 = matchmakingQueue.shift();
