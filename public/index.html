@@ -1,1 +1,562 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Xverdes — Batalha de Tornados</title>
+<style>
+:root {
+  --bg-color: #06100d;
+  --card-bg: #0b2119;
+  --border-color: #2d624d;
+  --primary-color: #57ed9e;
+  --btn-bg: #123a2a;
+  --btn-hover: #1b573e;
+  --text-muted: #9cbcaf;
+  --input-bg: #07140f;
+}
 
+body.theme-vermelho {
+  --bg-color: #120606;
+  --card-bg: #210b0b;
+  --border-color: #622d62;
+  --primary-color: #ff5757;
+  --btn-bg: #3a1212;
+  --btn-hover: #571b1b;
+  --text-muted: #bc9c9c;
+  --input-bg: #140707;
+}
+
+body.theme-rosa {
+  --bg-color: #12060e;
+  --card-bg: #210b1a;
+  --border-color: #622d55;
+  --primary-color: #ff57d8;
+  --btn-bg: #3a1232;
+  --btn-hover: #571b4b;
+  --text-muted: #bc9caa;
+  --input-bg: #140711;
+}
+
+body.theme-roxo {
+  --bg-color: #0d0612;
+  --card-bg: #180b21;
+  --border-color: #4c2d62;
+  --primary-color: #b557ff;
+  --btn-bg: #29123a;
+  --btn-hover: #3d1b57;
+  --text-muted: #aa9cbc;
+  --input-bg: #100714;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-color);color:#effff6;font-family:Arial,sans-serif;min-height:100vh;transition:0.3s}
+header{padding:18px 28px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:30px;font-weight:900;letter-spacing:3px;color:var(--primary-color)}.online{color:var(--text-muted)}
+.screen{max-width:1050px;margin:auto;padding:35px 20px}
+.card{background:var(--card-bg);border:1px solid var(--border-color);border-radius:22px;padding:28px;box-shadow:0 20px 60px #0007}
+h1{font-size:clamp(42px,7vw,72px);margin:5px 0}.muted{color:var(--text-muted)}
+input,select{width:100%;padding:15px;margin:8px 0;background:var(--input-bg);color:white;border:1px solid var(--border-color);border-radius:10px;font-size:16px}
+button{padding:14px 18px;border:1px solid var(--border-color);background:var(--btn-bg);color:white;border-radius:11px;font-weight:900;cursor:pointer;transition:0.2s}
+button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1px)}button:disabled{opacity:.35;cursor:not-allowed}
+#lobby{max-width:520px;margin:30px auto}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mode-btn{background:var(--btn-bg);margin-bottom:10px;width:100%}
+.arena{display:grid;grid-template-columns:1.2fr 1.4fr 1.2fr;gap:15px;align-items:center}
+.team-container{display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto}
+.player{text-align:center;padding:12px;border:1px solid var(--border-color);border-radius:14px;background:var(--input-bg)}
+.name{font-size:16px;font-weight:900}.hp{height:12px;background:#172a22;border-radius:20px;overflow:hidden;margin:6px 0}.bar{height:100%;width:100%;background:var(--primary-color);transition:.25s}
+.points{font-size:18px;font-weight:900;color:var(--primary-color)}
+#click{height:250px;border-radius:30px;border:2px dashed var(--border-color);background:radial-gradient(circle,var(--card-bg),var(--input-bg));font-size:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;user-select:none}
+.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px}.small{font-size:13px;color:var(--text-muted)}
+#feed{height:25px;text-align:center;color:var(--primary-color);margin:15px}
+.tornado{position:fixed;pointer-events:none;font-size:var(--size);left:var(--x);top:var(--y);z-index:9;animation:spin 1s linear infinite,rise 2.5s ease-out forwards}
+.skin-default{filter:drop-shadow(0 0 22px var(--primary-color))}
+.skin-galaxy{filter:drop-shadow(0 0 22px #a855f7) hue-rotate(180deg)}
+.skin-emerald{filter:drop-shadow(0 0 22px #10b981) saturate(3)}
+.skin-inferno{filter:drop-shadow(0 0 22px #ef4444) hue-rotate(280deg)}
+.skin-gold{filter:drop-shadow(0 0 22px #eab308) sepia(1)}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes rise{to{opacity:0;transform:translateY(-230px) scale(1.5)}}
+.hidden{display:none!important}
+.inventory, .settings-panel, .rank-badge{background:var(--input-bg);border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-top:15px}
+.rank-badge{text-align:center;font-weight:bold;font-size:18px;color:var(--primary-color)}
+.header-actions{display:flex;gap:10px}
+.bracket-container{display:flex;justify-content:space-around;gap:10px;margin-top:15px;overflow-x:auto}
+.match-card{background:var(--input-bg);border:1px solid var(--border-color);padding:8px;border-radius:8px;text-align:center;font-size:12px;min-width:110px}
+@media(max-width:750px){.arena{grid-template-columns:1fr}#click{height:180px}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">XVERDES</div>
+  <div class="header-actions">
+    <button id="toggleSettingsBtn">⚙️ Configurações</button>
+    <div class="online" id="status">● Offline</div>
+  </div>
+</header>
+
+<section id="lobby" class="card">
+<h1>Xverdes</h1><p class="muted">Batalha de Tornados</p>
+<input id="name" placeholder="Seu nome" maxlength="18">
+
+<div class="rank-badge">
+  Seu Rank: <span id="userRankTitle">🟤 Ferro</span> (<span id="userMmr">100</span> MMR)
+</div>
+
+<label class="small" style="margin-top:10px;display:block">Modo de Jogo:</label>
+<select id="gameMode">
+  <option value="multiplayer">Multiplayer Casual (Até 5v5)</option>
+  <option value="ranked">Modo Ranqueado 🏆 (1v1 Competitivo)</option>
+  <option value="tourney">Campeonato Eliminatório 🥇 (Mata-Mata)</option>
+  <option value="bots">Vs Bots 🤖 (Fácil, Médio, Difícil)</option>
+  <option value="solo">Modo Solo (Treino & Skins)</option>
+</select>
+
+<!-- Controles Multiplayer Casual -->
+<div id="multiControls">
+  <input id="room" placeholder="Código da sala (ex.: VERDE)">
+  <label class="small">Tamanho dos Times:</label>
+  <select id="teamSize">
+    <option value="1">1v1</option>
+    <option value="2">2v2</option>
+    <option value="3">3v3</option>
+    <option value="5">5v5</option>
+  </select>
+  <div class="row">
+    <button id="create">Criar sala</button>
+    <button id="join">Entrar na sala</button>
+  </div>
+</div>
+
+<!-- Controles Ranqueado -->
+<div id="rankedControls" class="hidden">
+  <input id="rankedRoom" placeholder="Código da partida competitiva">
+  <button id="startRanked" class="mode-btn">Entrar em Partida Ranqueada ⚔️</button>
+</div>
+
+<!-- Controles Campeonato -->
+<div id="tourneyControls" class="hidden">
+  <input id="tourneyCode" placeholder="Código do Campeonato">
+  <label class="small">Jogadores no Torneio:</label>
+  <select id="tourneySize">
+    <option value="4">4 Jogadores (Semifinal e Final)</option>
+    <option value="8">8 Jogadores (Quartas, Semifinal e Final)</option>
+  </select>
+  <div class="row">
+    <button id="createTourney">Criar Campeonato</button>
+    <button id="joinTourney">Entrar no Campeonato</button>
+  </div>
+  <div id="tourneyBracketView" class="inventory hidden">
+    <div class="small" style="text-align:center;font-weight:bold">Chaveamento do Campeonato</div>
+    <div id="bracketDisplay" class="bracket-container"></div>
+  </div>
+</div>
+
+<!-- Controles Bots -->
+<div id="botControls" class="hidden">
+  <label class="small">Dificuldade dos Bots:</label>
+  <select id="botDifficulty">
+    <option value="easy">Fácil 🟢</option>
+    <option value="medium">Médio 🟡</option>
+    <option value="hard">Difícil 🔴</option>
+  </select>
+  <button id="startBots" class="mode-btn">Iniciar Partida vs Bot 🤖</button>
+</div>
+
+<!-- Controles Solo -->
+<div id="soloControls" class="hidden">
+  <button id="startSolo" class="mode-btn">Jogar Solo 🎯</button>
+</div>
+
+<div class="inventory">
+  <div class="small">Skins Desbloqueadas: <span id="skinCount">1</span></div>
+  <select id="skinSelect">
+    <option value="skin-default">Tornado Padrão 🟢</option>
+  </select>
+</div>
+
+<div id="settingsPanel" class="settings-panel hidden">
+  <div class="small" style="font-weight:bold;margin-bottom:8px">⚙️ Tema e Aparência:</div>
+  <select id="themeSelect">
+    <option value="xverdespro">Xverdes Pro (Verdes) 💚</option>
+    <option value="vermelho">Vermelho 🔴</option>
+    <option value="rosa">Rosa 🩷</option>
+    <option value="roxo">Roxo 🟣</option>
+  </select>
+</div>
+</section>
+
+<section id="game" class="screen hidden">
+<div class="arena">
+  <div class="team-container" id="teamA"></div>
+  <div>
+    <div id="click">🖱️<br><span id="clickLabel">Clique para ganhar <span class="unit-label">pontos</span></span></div>
+    <div id="feed">Aguardando...</div>
+  </div>
+  <div class="team-container" id="teamB"></div>
+</div>
+<div class="controls" id="actionControls">
+  <button data-type="pequeno" data-cost="25">🌪️ Pequeno — 25</button>
+  <button data-type="medio" data-cost="100">🌪️ Médio — 100</button>
+  <button data-type="grande" data-cost="300">🌪️ Grande — 300</button>
+</div>
+<div style="text-align:center;margin-top:15px">
+  <button id="leaveBtn">Sair da Partida</button>
+</div>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let me = null, isSolo = false, isBotMode = false, soloClicks = 0, equippedSkin = "skin-default";
+let currentTheme = localStorage.getItem("xverdes_theme") || "xverdespro";
+let botInterval = null, botPlayer = null, humanPlayer = null;
+
+let mmr = parseInt(localStorage.getItem("xverdes_mmr")) || 100;
+
+function getRankTitle(val) {
+  if (val < 200) return "🟤 Ferro";
+  if (val < 400) return "⚪ Bronze";
+  if (val < 600) return "🔘 Prata";
+  if (val < 800) return "🟡 Ouro";
+  if (val < 1000) return "🩵 Platina";
+  if (val < 1300) return "💎 Diamante";
+  return "🔥 Desafiante";
+}
+
+function updateRankUI() {
+  $("userMmr").textContent = mmr;
+  $("userRankTitle").textContent = getRankTitle(mmr);
+}
+
+const skinNames = {
+  "skin-default": "Tornado Padrão 🟢",
+  "skin-galaxy": "Tornado Galaxy 🌌",
+  "skin-emerald": "Tornado Emerald 💎",
+  "skin-inferno": "Tornado Inferno 🔥",
+  "skin-gold": "Tornado Gold 👑"
+};
+
+let unlockedSkins = JSON.parse(localStorage.getItem("xverdes_skins")) || ["skin-default"];
+const $ = id => document.getElementById(id);
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem("xverdes_theme", theme);
+  document.body.className = theme === "xverdespro" ? "" : `theme-${theme}`;
+  const unitText = theme === "xverdespro" ? "verdes" : "pontos";
+  document.querySelectorAll(".unit-label").forEach(el => el.textContent = unitText);
+}
+applyTheme(currentTheme);
+updateRankUI();
+
+$("themeSelect").value = currentTheme;
+$("themeSelect").onchange = e => applyTheme(e.target.value);
+$("toggleSettingsBtn").onclick = () => $("settingsPanel").classList.toggle("hidden");
+
+function updateSkinDropdown() {
+  const select = $("skinSelect");
+  select.innerHTML = "";
+  unlockedSkins.forEach(skinKey => {
+    const opt = document.createElement("option");
+    opt.value = skinKey;
+    opt.textContent = skinNames[skinKey] || skinKey;
+    if (skinKey === equippedSkin) opt.selected = true;
+    select.appendChild(opt);
+  });
+  $("skinCount").textContent = unlockedSkins.length;
+}
+updateSkinDropdown();
+
+$("gameMode").onchange = (e) => {
+  const val = e.target.value;
+  $("multiControls").classList.toggle("hidden", val !== "multiplayer");
+  $("rankedControls").classList.toggle("hidden", val !== "ranked");
+  $("tourneyControls").classList.toggle("hidden", val !== "tourney");
+  $("botControls").classList.toggle("hidden", val !== "bots");
+  $("soloControls").classList.toggle("hidden", val !== "solo");
+};
+
+$("skinSelect").onchange = (e) => { equippedSkin = e.target.value; };
+
+socket.on("connect", () => { $("status").textContent = "● Conectado"; });
+socket.on("disconnect", () => { $("status").textContent = "● Desconectado"; });
+
+// --- CONEXÃO CASUAL E RANQUEADA ---
+function join(isRanked = false) {
+  const name = $("name").value.trim() || "Jogador";
+  const roomInput = isRanked ? $("rankedRoom").value : $("room").value;
+  const room = roomInput.trim().toUpperCase() || "RANKED_1V1";
+  const maxPerTeam = isRanked ? 1 : $("teamSize").value;
+  
+  socket.emit("join_room", { 
+    name, 
+    roomId: room, 
+    maxPerTeam: parseInt(maxPerTeam),
+    isRanked,
+    mmr
+  });
+}
+
+$("create").onclick = () => { 
+  if (!$("room").value.trim()) $("room").value = Math.random().toString(36).slice(2,8).toUpperCase(); 
+  join(false); 
+};
+$("join").onclick = () => join(false);
+
+$("startRanked").onclick = () => {
+  if (!$("rankedRoom").value.trim()) $("rankedRoom").value = "RANK_" + Math.random().toString(36).slice(2,6).toUpperCase();
+  join(true);
+};
+
+// --- MODO CAMPEONATO ---
+$("createTourney").onclick = () => {
+  const name = $("name").value.trim() || "Jogador";
+  const size = $("tourneySize").value;
+  socket.emit("create_tourney", { name, size });
+};
+
+$("joinTourney").onclick = () => {
+  const name = $("name").value.trim() || "Jogador";
+  const tourneyId = $("tourneyCode").value.trim().toUpperCase();
+  socket.emit("join_tourney", { name, tourneyId });
+};
+
+socket.on("tourney_created", data => {
+  $("tourneyCode").value = data.id;
+  alert(`Campeonato criado! Código: ${data.id}\nAguarde os outros jogadores entrarem.`);
+});
+
+socket.on("tourney_update", tourney => {
+  $("tourneyBracketView").classList.remove("hidden");
+  const display = $("bracketDisplay");
+  display.innerHTML = "";
+
+  tourney.bracket.forEach((round, rIndex) => {
+    const col = document.createElement("div");
+    col.innerHTML = `<strong>Rodada ${rIndex + 1}</strong>`;
+    round.forEach(m => {
+      const matchBox = document.createElement("div");
+      matchBox.className = "match-card";
+      matchBox.innerHTML = `
+        <div>${m.p1.name} vs ${m.p2.name}</div>
+        <div style="color:var(--primary-color)">${m.winner ? '🏆 ' + m.winner.name : 'Em andamento'}</div>
+      `;
+      col.appendChild(matchBox);
+    });
+    display.appendChild(col);
+  });
+});
+
+socket.on("tourney_started", () => {
+  alert("O Campeonato Começou! Seus confrontos foram gerados.");
+});
+
+socket.on("tourney_champion", data => {
+  alert(`🥇 CAMPEÃO DO TORNEIO: ${data.winner.name}!`);
+});
+
+socket.on("ranked_result", res => {
+  mmr = res.newMmr;
+  localStorage.setItem("xverdes_mmr", mmr);
+  updateRankUI();
+  const text = res.won ? `🎉 Vitória Ranqueada! +${res.change} MMR` : `💔 Derrota Ranqueada! ${res.change} MMR`;
+  alert(`${text}\nSeu novo Rank: ${res.newRank}`);
+});
+
+// --- MODO BOTS & SOLO ---
+$("startSolo").onclick = () => {
+  isSolo = true; isBotMode = false;
+  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
+  $("actionControls").classList.add("hidden");
+  $("clickLabel").innerHTML = `Cliques no Solo: 0 / 100`;
+  $("feed").textContent = "Modo Solo Ativo! A cada 100 cliques ganhe uma Skin!";
+  $("teamA").innerHTML = `<div class="player"><div class="name">${$("name").value.trim() || 'Jogador'}</div></div>`;
+  $("teamB").innerHTML = "";
+};
+
+$("startBots").onclick = () => {
+  isBotMode = true; isSolo = false;
+  const diff = $("botDifficulty").value;
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pontos";
+  
+  humanPlayer = { name: $("name").value.trim() || 'Jogador', hp: 100, points: 0, team: 'A' };
+  botPlayer = { name: `Bot (${diff.toUpperCase()}) 🤖`, hp: 100, points: 0, team: 'B' };
+
+  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
+  $("actionControls").classList.remove("hidden");
+  $("clickLabel").innerHTML = `Clique para ganhar <span class="unit-label">${unitText}</span>`;
+  $("feed").textContent = "⚔️ BATALHA VS BOT INICIADA!";
+
+  renderBotGame();
+
+  const speeds = { easy: 1000, medium: 500, hard: 200 };
+  clearInterval(botInterval);
+  botInterval = setInterval(() => {
+    if (!isBotMode || humanPlayer.hp <= 0 || botPlayer.hp <= 0) return;
+    botPlayer.points += 1;
+    
+    if (botPlayer.points >= 300 && Math.random() < 0.7) {
+      botSummon("grande");
+    } else if (botPlayer.points >= 100 && Math.random() < 0.5) {
+      botSummon("medio");
+    } else if (botPlayer.points >= 25 && Math.random() < 0.4) {
+      botSummon("pequeno");
+    }
+    renderBotGame();
+  }, speeds[diff]);
+};
+
+function botSummon(type) {
+  const costs = { pequeno: 25, medio: 100, grande: 300 };
+  const damages = { pequeno: 15, medio: 35, grande: 80 };
+  
+  if (botPlayer.points >= costs[type]) {
+    botPlayer.points -= costs[type];
+    humanPlayer.hp = Math.max(0, humanPlayer.hp - damages[type]);
+    spawnTornado({ size: costs[type] / 2 + 20, skin: 'skin-inferno' });
+    
+    if (humanPlayer.hp <= 0) {
+      $("feed").textContent = "🏆 Bot venceu a batalha!";
+      clearInterval(botInterval);
+    }
+  }
+}
+
+function renderBotGame() {
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pts";
+  $("teamA").innerHTML = `
+    <div class="player">
+      <div class="name">${humanPlayer.name}</div>
+      <div class="hp"><div class="bar" style="width:${humanPlayer.hp}%"></div></div>
+      <div class="points">${humanPlayer.points} ${unitText}</div>
+    </div>`;
+  $("teamB").innerHTML = `
+    <div class="player">
+      <div class="name">${botPlayer.name}</div>
+      <div class="hp"><div class="bar" style="width:${botPlayer.hp}%"></div></div>
+      <div class="points">${botPlayer.points} ${unitText}</div>
+    </div>`;
+
+  document.querySelectorAll("#actionControls button").forEach(x => {
+    x.disabled = humanPlayer.points < +x.dataset.cost || humanPlayer.hp <= 0;
+  });
+}
+
+$("click").onclick = () => {
+  if (isSolo) {
+    soloClicks++;
+    $("clickLabel").innerHTML = `Cliques no Solo: ${soloClicks} / 100`;
+    spawnTornado({ size: 50, skin: equippedSkin });
+    if (soloClicks % 100 === 0) unlockRandomSkin();
+  } else if (isBotMode) {
+    if (humanPlayer.hp > 0) {
+      humanPlayer.points += 1;
+      renderBotGame();
+    }
+  } else {
+    socket.emit("click");
+  }
+};
+
+document.querySelectorAll("#actionControls button").forEach(btn => {
+  btn.onclick = () => {
+    if (isBotMode) {
+      const type = btn.dataset.type;
+      const costs = { pequeno: 25, medio: 100, grande: 300 };
+      const damages = { pequeno: 15, medio: 35, grande: 80 };
+      
+      if (humanPlayer.points >= costs[type] && botPlayer.hp > 0) {
+        humanPlayer.points -= costs[type];
+        botPlayer.hp = Math.max(0, botPlayer.hp - damages[type]);
+        spawnTornado({ size: costs[type] / 2 + 20, skin: equippedSkin });
+        
+        if (botPlayer.hp <= 0) {
+          $("feed").textContent = "🏆 Você venceu o Bot!";
+          clearInterval(botInterval);
+        }
+        renderBotGame();
+      }
+    } else {
+      socket.emit("summon", { type: btn.dataset.type, skin: equippedSkin });
+    }
+  };
+});
+
+function unlockRandomSkin() {
+  const allSkins = ["skin-galaxy", "skin-emerald", "skin-inferno", "skin-gold"];
+  const locked = allSkins.filter(s => !unlockedSkins.includes(s));
+  if (locked.length === 0) {
+    $("feed").textContent = "🎉 Você já possui todas as skins!";
+    return;
+  }
+  const won = locked[Math.floor(Math.random() * locked.length)];
+  unlockedSkins.push(won);
+  localStorage.setItem("xverdes_skins", JSON.stringify(unlockedSkins));
+  updateSkinDropdown();
+  alert(`🎉 PARABÉNS! Você ganhou a skin: ${skinNames[won]}`);
+}
+
+socket.on("joined", data => {
+  isSolo = false; isBotMode = false;
+  me = data.player;
+  $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
+  $("actionControls").classList.remove("hidden");
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pontos";
+  $("clickLabel").innerHTML = `Clique para ganhar <span class="unit-label">${unitText}</span>`;
+});
+
+function render(data) {
+  if (isSolo || isBotMode) return;
+  const teamA = data.players.filter(p => p.team === 'A');
+  const teamB = data.players.filter(p => p.team === 'B');
+  const unitText = currentTheme === "xverdespro" ? "verdes" : "pts";
+  
+  const renderTeam = (list) => list.map(p => `
+    <div class="player">
+      <div class="name">${p.name} ${p.mmr ? `(${getRankTitle(p.mmr)})` : ''}</div>
+      <div class="hp"><div class="bar" style="width:${p.hp}%"></div></div>
+      <div class="points">${p.points} ${unitText}</div>
+    </div>
+  `).join('');
+
+  $("teamA").innerHTML = renderTeam(teamA);
+  $("teamB").innerHTML = teamB.length ? renderTeam(teamB) : '<div class="player"><div class="name">Aguardando time rival...</div></div>';
+  
+  const mine = data.players.find(p => p.id === me?.id);
+  if (mine) me = { ...me, ...mine };
+  document.querySelectorAll("#actionControls button").forEach(x => x.disabled = !mine || mine.points < +x.dataset.cost);
+}
+
+socket.on("room_state", render);
+socket.on("players_update", render);
+
+function spawnTornado(t) {
+  const el = document.createElement("div");
+  el.className = `tornado ${t.skin || 'skin-default'}`;
+  el.textContent = "🌪️";
+  el.style.setProperty("--size", (t.size || 50) + "px");
+  el.style.setProperty("--x", (25 + Math.random() * 50) + "vw");
+  el.style.setProperty("--y", (35 + Math.random() * 30) + "vh");
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+socket.on("tornado", t => {
+  spawnTornado(t);
+  $("feed").textContent = "🌪️ Tornado lançado na arena!";
+});
+
+socket.on("battle_start", () => $("feed").textContent = "⚔️ BATALHA INICIADA!");
+socket.on("battle_end", d => $("feed").textContent = "🏆 " + d.winnerText + " venceu a batalha!");
+socket.on("error_message", m => alert(m));
+
+$("leaveBtn").onclick = () => {
+  isSolo = false; isBotMode = false;
+  clearInterval(botInterval);
+  $("game").classList.add("hidden");
+  $("lobby").classList.remove("hidden");
+  updateSkinDropdown();
+};
+</script>
+</body>
+</html>
