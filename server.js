@@ -41,6 +41,7 @@ app.get("*", (req, res) => {
 
 const rooms = {};
 const tourneys = {};
+let matchmakingQueue = []; // Fila de espera para achar partidas automaticamente
 
 const COSTS = { pequeno: 25, medio: 100, grande: 300 };
 const DAMAGES = { pequeno: 15, medio: 35, grande: 80 };
@@ -57,7 +58,65 @@ function getRankTitle(mmr) {
 
 io.on("connection", (socket) => {
 
-  // --- MODO SALA PADRÃO & RANQUEADO ---
+  // --- FILA DE MATCHMAKING (ACHAR PARTIDA SEM CÓDIGO) ---
+  socket.on("find_match", ({ name, mmr }) => {
+    // Evita duplicar o mesmo jogador na fila
+    if (matchmakingQueue.some(p => p.id === socket.id)) return;
+
+    const playerWaiting = {
+      id: socket.id,
+      name: name || "Jogador",
+      mmr: mmr || 100,
+      socket
+    };
+
+    matchmakingQueue.push(playerWaiting);
+    socket.emit("queue_status", { inQueue: true, message: "Procurando oponente..." });
+
+    // Se houver pelo menos 2 jogadores na fila, cria a partida automaticamente
+    if (matchmakingQueue.length >= 2) {
+      const p1 = matchmakingQueue.shift();
+      const p2 = matchmakingQueue.shift();
+
+      const roomId = "AUTO_" + Math.random().toString(36).slice(2, 7).toUpperCase();
+
+      rooms[roomId] = {
+        id: roomId,
+        maxPerTeam: 1,
+        isRanked: false,
+        players: [
+          { id: p1.id, name: p1.name, team: "A", hp: 100, points: 0, mmr: p1.mmr },
+          { id: p2.id, name: p2.name, team: "B", hp: 100, points: 0, mmr: p2.mmr }
+        ],
+        status: "playing"
+      };
+
+      const socket1 = p1.socket;
+      const socket2 = p2.socket;
+
+      if (socket1) {
+        socket1.join(roomId);
+        socket1.roomId = roomId;
+        socket1.emit("joined", { player: rooms[roomId].players[0], room: rooms[roomId] });
+      }
+
+      if (socket2) {
+        socket2.join(roomId);
+        socket2.roomId = roomId;
+        socket2.emit("joined", { player: rooms[roomId].players[1], room: rooms[roomId] });
+      }
+
+      io.to(roomId).emit("battle_start");
+      io.to(roomId).emit("room_state", rooms[roomId]);
+    }
+  });
+
+  socket.on("cancel_search", () => {
+    matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
+    socket.emit("queue_status", { inQueue: false, message: "Busca cancelada." });
+  });
+
+  // --- MODO SALA PADRÃO VIA CÓDIGO & RANQUEADO ---
   socket.on("join_room", ({ name, roomId, maxPerTeam, isRanked, mmr }) => {
     if (!roomId) return socket.emit("error_message", "Código da sala é obrigatório.");
 
@@ -146,7 +205,6 @@ io.on("connection", (socket) => {
       room.status = "ended";
       const winnerTeam = teamAAlive ? "A" : "B";
 
-      // Lógica de Ganho/Perda de Ranque (MMR)
       if (room.isRanked) {
         room.players.forEach(p => {
           const isWinner = p.team === winnerTeam;
@@ -161,7 +219,6 @@ io.on("connection", (socket) => {
         });
       }
 
-      // Notifica Torneio se a partida pertence a uma chave
       if (room.tourneyId) {
         const winnerPlayer = winnerTeam === "A" 
           ? room.players.find(p => p.team === 'A') 
@@ -299,6 +356,8 @@ io.on("connection", (socket) => {
   }
 
   socket.on("disconnect", () => {
+    matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
+
     const room = rooms[socket.roomId];
     if (room) {
       room.players = room.players.filter(p => p.id !== socket.id);
