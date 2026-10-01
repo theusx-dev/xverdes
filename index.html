@@ -19,7 +19,7 @@
 body.theme-vermelho {
   --bg-color: #120606;
   --card-bg: #210b0b;
-  --border-color: #622d2d;
+  --border-color: #622d62;
   --primary-color: #ff5757;
   --btn-bg: #3a1212;
   --btn-hover: #571b1b;
@@ -77,8 +77,11 @@ button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1p
 .skin-gold{filter:drop-shadow(0 0 22px #eab308) sepia(1)}
 @keyframes spin{to{transform:rotate(360deg)}}@keyframes rise{to{opacity:0;transform:translateY(-230px) scale(1.5)}}
 .hidden{display:none!important}
-.inventory, .settings-panel{background:var(--input-bg);border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-top:15px}
+.inventory, .settings-panel, .rank-badge{background:var(--input-bg);border:1px solid var(--border-color);border-radius:12px;padding:12px;margin-top:15px}
+.rank-badge{text-align:center;font-weight:bold;font-size:18px;color:var(--primary-color)}
 .header-actions{display:flex;gap:10px}
+.bracket-container{display:flex;justify-content:space-around;gap:10px;margin-top:15px;overflow-x:auto}
+.match-card{background:var(--input-bg);border:1px solid var(--border-color);padding:8px;border-radius:8px;text-align:center;font-size:12px;min-width:110px}
 @media(max-width:750px){.arena{grid-template-columns:1fr}#click{height:180px}.row{grid-template-columns:1fr}}
 </style>
 </head>
@@ -95,13 +98,20 @@ button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1p
 <h1>Xverdes</h1><p class="muted">Batalha de Tornados</p>
 <input id="name" placeholder="Seu nome" maxlength="18">
 
-<label class="small">Modo de Jogo:</label>
+<div class="rank-badge">
+  Seu Rank: <span id="userRankTitle">🟤 Ferro</span> (<span id="userMmr">100</span> MMR)
+</div>
+
+<label class="small" style="margin-top:10px;display:block">Modo de Jogo:</label>
 <select id="gameMode">
-  <option value="multiplayer">Multiplayer Online (Até 5v5)</option>
+  <option value="multiplayer">Multiplayer Casual (Até 5v5)</option>
+  <option value="ranked">Modo Ranqueado 🏆 (1v1 Competitivo)</option>
+  <option value="tourney">Campeonato Eliminatório 🥇 (Mata-Mata)</option>
   <option value="bots">Vs Bots 🤖 (Fácil, Médio, Difícil)</option>
   <option value="solo">Modo Solo (Treino & Skins)</option>
 </select>
 
+<!-- Controles Multiplayer Casual -->
 <div id="multiControls">
   <input id="room" placeholder="Código da sala (ex.: VERDE)">
   <label class="small">Tamanho dos Times:</label>
@@ -117,6 +127,31 @@ button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1p
   </div>
 </div>
 
+<!-- Controles Ranqueado -->
+<div id="rankedControls" class="hidden">
+  <input id="rankedRoom" placeholder="Código da partida competitiva">
+  <button id="startRanked" class="mode-btn">Entrar em Partida Ranqueada ⚔️</button>
+</div>
+
+<!-- Controles Campeonato -->
+<div id="tourneyControls" class="hidden">
+  <input id="tourneyCode" placeholder="Código do Campeonato">
+  <label class="small">Jogadores no Torneio:</label>
+  <select id="tourneySize">
+    <option value="4">4 Jogadores (Semifinal e Final)</option>
+    <option value="8">8 Jogadores (Quartas, Semifinal e Final)</option>
+  </select>
+  <div class="row">
+    <button id="createTourney">Criar Campeonato</button>
+    <button id="joinTourney">Entrar no Campeonato</button>
+  </div>
+  <div id="tourneyBracketView" class="inventory hidden">
+    <div class="small" style="text-align:center;font-weight:bold">Chaveamento do Campeonato</div>
+    <div id="bracketDisplay" class="bracket-container"></div>
+  </div>
+</div>
+
+<!-- Controles Bots -->
 <div id="botControls" class="hidden">
   <label class="small">Dificuldade dos Bots:</label>
   <select id="botDifficulty">
@@ -127,6 +162,7 @@ button:hover:not(:disabled){background:var(--btn-hover);transform:translateY(-1p
   <button id="startBots" class="mode-btn">Iniciar Partida vs Bot 🤖</button>
 </div>
 
+<!-- Controles Solo -->
 <div id="soloControls" class="hidden">
   <button id="startSolo" class="mode-btn">Jogar Solo 🎯</button>
 </div>
@@ -175,6 +211,23 @@ let me = null, isSolo = false, isBotMode = false, soloClicks = 0, equippedSkin =
 let currentTheme = localStorage.getItem("xverdes_theme") || "xverdespro";
 let botInterval = null, botPlayer = null, humanPlayer = null;
 
+let mmr = parseInt(localStorage.getItem("xverdes_mmr")) || 100;
+
+function getRankTitle(val) {
+  if (val < 200) return "🟤 Ferro";
+  if (val < 400) return "⚪ Bronze";
+  if (val < 600) return "🔘 Prata";
+  if (val < 800) return "🟡 Ouro";
+  if (val < 1000) return "🩵 Platina";
+  if (val < 1300) return "💎 Diamante";
+  return "🔥 Desafiante";
+}
+
+function updateRankUI() {
+  $("userMmr").textContent = mmr;
+  $("userRankTitle").textContent = getRankTitle(mmr);
+}
+
 const skinNames = {
   "skin-default": "Tornado Padrão 🟢",
   "skin-galaxy": "Tornado Galaxy 🌌",
@@ -190,11 +243,12 @@ function applyTheme(theme) {
   currentTheme = theme;
   localStorage.setItem("xverdes_theme", theme);
   document.body.className = theme === "xverdespro" ? "" : `theme-${theme}`;
-  
   const unitText = theme === "xverdespro" ? "verdes" : "pontos";
   document.querySelectorAll(".unit-label").forEach(el => el.textContent = unitText);
 }
 applyTheme(currentTheme);
+updateRankUI();
+
 $("themeSelect").value = currentTheme;
 $("themeSelect").onchange = e => applyTheme(e.target.value);
 $("toggleSettingsBtn").onclick = () => $("settingsPanel").classList.toggle("hidden");
@@ -216,6 +270,8 @@ updateSkinDropdown();
 $("gameMode").onchange = (e) => {
   const val = e.target.value;
   $("multiControls").classList.toggle("hidden", val !== "multiplayer");
+  $("rankedControls").classList.toggle("hidden", val !== "ranked");
+  $("tourneyControls").classList.toggle("hidden", val !== "tourney");
   $("botControls").classList.toggle("hidden", val !== "bots");
   $("soloControls").classList.toggle("hidden", val !== "solo");
 };
@@ -225,19 +281,89 @@ $("skinSelect").onchange = (e) => { equippedSkin = e.target.value; };
 socket.on("connect", () => { $("status").textContent = "● Conectado"; });
 socket.on("disconnect", () => { $("status").textContent = "● Desconectado"; });
 
-function join() {
+// --- CONEXÃO CASUAL E RANQUEADA ---
+function join(isRanked = false) {
   const name = $("name").value.trim() || "Jogador";
-  const room = $("room").value.trim().toUpperCase();
-  const maxPerTeam = $("teamSize").value;
-  socket.emit("join_room", { name, roomId: room, maxPerTeam: parseInt(maxPerTeam) });
+  const roomInput = isRanked ? $("rankedRoom").value : $("room").value;
+  const room = roomInput.trim().toUpperCase() || "RANKED_1V1";
+  const maxPerTeam = isRanked ? 1 : $("teamSize").value;
+  
+  socket.emit("join_room", { 
+    name, 
+    roomId: room, 
+    maxPerTeam: parseInt(maxPerTeam),
+    isRanked,
+    mmr
+  });
 }
 
 $("create").onclick = () => { 
   if (!$("room").value.trim()) $("room").value = Math.random().toString(36).slice(2,8).toUpperCase(); 
-  join(); 
+  join(false); 
 };
-$("join").onclick = join;
+$("join").onclick = () => join(false);
 
+$("startRanked").onclick = () => {
+  if (!$("rankedRoom").value.trim()) $("rankedRoom").value = "RANK_" + Math.random().toString(36).slice(2,6).toUpperCase();
+  join(true);
+};
+
+// --- MODO CAMPEONATO ---
+$("createTourney").onclick = () => {
+  const name = $("name").value.trim() || "Jogador";
+  const size = $("tourneySize").value;
+  socket.emit("create_tourney", { name, size });
+};
+
+$("joinTourney").onclick = () => {
+  const name = $("name").value.trim() || "Jogador";
+  const tourneyId = $("tourneyCode").value.trim().toUpperCase();
+  socket.emit("join_tourney", { name, tourneyId });
+};
+
+socket.on("tourney_created", data => {
+  $("tourneyCode").value = data.id;
+  alert(`Campeonato criado! Código: ${data.id}\nAguarde os outros jogadores entrarem.`);
+});
+
+socket.on("tourney_update", tourney => {
+  $("tourneyBracketView").classList.remove("hidden");
+  const display = $("bracketDisplay");
+  display.innerHTML = "";
+
+  tourney.bracket.forEach((round, rIndex) => {
+    const col = document.createElement("div");
+    col.innerHTML = `<strong>Rodada ${rIndex + 1}</strong>`;
+    round.forEach(m => {
+      const matchBox = document.createElement("div");
+      matchBox.className = "match-card";
+      matchBox.innerHTML = `
+        <div>${m.p1.name} vs ${m.p2.name}</div>
+        <div style="color:var(--primary-color)">${m.winner ? '🏆 ' + m.winner.name : 'Em andamento'}</div>
+      `;
+      col.appendChild(matchBox);
+    });
+    display.appendChild(col);
+  });
+});
+
+socket.on("tourney_started", () => {
+  alert("O Campeonato Começou! Seus confrontos foram gerados.");
+});
+
+socket.on("tourney_champion", data => {
+  alert(`🥇 CAMPEÃO DO TORNEIO: ${data.winner.name}!`);
+});
+
+socket.on("ranked_result", res => {
+  mmr = res.newMmr;
+  localStorage.setItem("xverdes_mmr", mmr);
+  updateRankUI();
+  const text = res.won ? `🎉 Vitória Ranqueada! +${res.change} MMR` : `💔 Derrota Ranqueada! ${res.change} MMR`;
+  alert(`${text}\nSeu novo Rank: ${res.newRank}`);
+});
+
+// --- MODO BOTS & SOLO ---
 $("startSolo").onclick = () => {
   isSolo = true; isBotMode = false;
   $("lobby").classList.add("hidden"); $("game").classList.remove("hidden");
@@ -337,6 +463,7 @@ document.querySelectorAll("#actionControls button").forEach(btn => {
     if (isBotMode) {
       const type = btn.dataset.type;
       const costs = { pequeno: 25, medio: 100, grande: 300 };
+      const damages = { pequeno: 15, medio: 35, grande: 80 };
       
       if (humanPlayer.points >= costs[type] && botPlayer.hp > 0) {
         humanPlayer.points -= costs[type];
@@ -386,7 +513,7 @@ function render(data) {
   
   const renderTeam = (list) => list.map(p => `
     <div class="player">
-      <div class="name">${p.name}</div>
+      <div class="name">${p.name} ${p.mmr ? `(${getRankTitle(p.mmr)})` : ''}</div>
       <div class="hp"><div class="bar" style="width:${p.hp}%"></div></div>
       <div class="points">${p.points} ${unitText}</div>
     </div>
@@ -420,7 +547,7 @@ socket.on("tornado", t => {
 });
 
 socket.on("battle_start", () => $("feed").textContent = "⚔️ BATALHA INICIADA!");
-socket.on("battle_end", d => $("feed").textContent = "🏆 " + d.winnerText + " venceu a batalha!";
+socket.on("battle_end", d => $("feed").textContent = "🏆 " + d.winnerText + " venceu a batalha!");
 socket.on("error_message", m => alert(m));
 
 $("leaveBtn").onclick = () => {
