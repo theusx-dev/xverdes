@@ -24,18 +24,32 @@ app.get("/", (req, res) => {
 });
 
 const rooms = {};
+const tourneys = {};
 
 const COSTS = { pequeno: 25, medio: 100, grande: 300 };
 const DAMAGES = { pequeno: 15, medio: 35, grande: 80 };
 
+function getRankTitle(mmr) {
+  if (mmr < 200) return "🟤 Ferro";
+  if (mmr < 400) return "⚪ Bronzear";
+  if (mmr < 600) return "🔘 Prata";
+  if (mmr < 800) return "🟡 Ouro";
+  if (mmr < 1000) return "🩵 Platina";
+  if (mmr < 1300) return "💎 Diamante";
+  return "🔥 Desafiante";
+}
+
 io.on("connection", (socket) => {
-  socket.on("join_room", ({ name, roomId, maxPerTeam }) => {
+
+  // --- MODO SALA PADRÃO & RANQUEADO ---
+  socket.on("join_room", ({ name, roomId, maxPerTeam, isRanked, mmr }) => {
     if (!roomId) return socket.emit("error_message", "Código da sala é obrigatório.");
 
     if (!rooms[roomId]) {
       rooms[roomId] = {
         id: roomId,
         maxPerTeam: maxPerTeam || 1,
+        isRanked: !!isRanked,
         players: [],
         status: "waiting"
       };
@@ -56,7 +70,8 @@ io.on("connection", (socket) => {
       name: name || "Jogador",
       team,
       hp: 100,
-      points: 0
+      points: 0,
+      mmr: mmr || 100
     };
 
     room.players.push(player);
@@ -113,18 +128,156 @@ io.on("connection", (socket) => {
 
     if (!teamAAlive || !teamBAlive) {
       room.status = "ended";
-      const winnerText = !teamAAlive ? "Time B" : "Time A";
+      const winnerTeam = teamAAlive ? "A" : "B";
+      const winnerText = winnerTeam === "A" ? "Time A" : "Time B";
+
+      // Lógica de Ganho/Perda de Ranque (MMR)
+      if (room.isRanked) {
+        room.players.forEach(p => {
+          const isWinner = p.team === winnerTeam;
+          const mmrChange = isWinner ? 30 : -20;
+          p.mmr = Math.max(0, p.mmr + mmrChange);
+          io.to(p.id).emit("ranked_result", {
+            won: isWinner,
+            change: mmrChange,
+            newMmr: p.mmr,
+            newRank: getRankTitle(p.mmr)
+          });
+        });
+      }
+
+      // Notifica Torneio se a partida pertence a uma chave
+      if (room.tourneyId) {
+        handleTourneyMatchEnd(room.tourneyId, room.matchId, winnerTeam === "A" ? room.players.find(p=>p.team==='A') : room.players.find(p=>p.team==='B'));
+      }
+
       io.to(room.id).emit("battle_end", { winnerText });
     }
 
     io.to(room.id).emit("players_update", room);
   });
 
+  // --- MODO CAMPEONATO ELIMINATÓRIO (MATA-MATA) ---
+  socket.on("create_tourney", ({ name, size }) => {
+    const tourneyId = "TORNEIO_" + Math.random().toString(36).slice(2, 7).toUpperCase();
+    tourneys[tourneyId] = {
+      id: tourneyId,
+      size: parseInt(size) || 4, // 4 ou 8 jogadores
+      players: [{ id: socket.id, name: name || "Jogador 1" }],
+      bracket: [],
+      currentRound: 0,
+      status: "waiting"
+    };
+    socket.tourneyId = tourneyId;
+    socket.join(tourneyId);
+    socket.emit("tourney_created", tourneys[tourneyId]);
+  });
+
+  socket.on("join_tourney", ({ name, tourneyId }) => {
+    const tourney = tourneys[tourneyId];
+    if (!tourney) return socket.emit("error_message", "Campeonato não encontrado!");
+    if (tourney.status !== "waiting") return socket.emit("error_message", "Campeonato já começou!");
+    if (tourney.players.length >= tourney.size) return socket.emit("error_message", "Campeonato lotado!");
+
+    tourney.players.push({ id: socket.id, name: name || `Jogador ${tourney.players.length + 1}` });
+    socket.tourneyId = tourneyId;
+    socket.join(tourneyId);
+
+    io.to(tourneyId).emit("tourney_update", tourney);
+
+    if (tourney.players.length === tourney.size) {
+      startTourney(tourneyId);
+    }
+  });
+
+  function startTourney(tourneyId) {
+    const tourney = tourneys[tourneyId];
+    tourney.status = "in_progress";
+
+    // Embaralhar e criar confrontos da Primeira Rodada
+    const shuffled = [...tourney.players].sort(() => Math.random() - 0.5);
+    const matches = [];
+
+    for (let i = 0; i < shuffled.length; i += 2) {
+      matches.push({
+        id: `M_${tourney.currentRound}_${i / 2}`,
+        p1: shuffled[i],
+        p2: shuffled[i + 1],
+        winner: null
+      });
+    }
+
+    tourney.bracket.push(matches);
+    io.to(tourneyId).emit("tourney_started", tourney);
+    launchTourneyMatches(tourneyId);
+  }
+
+  function launchTourneyMatches(tourneyId) {
+    const tourney = tourneys[tourneyId];
+    const currentMatches = tourney.bracket[tourney.currentRound];
+
+    currentMatches.forEach(m => {
+      const matchRoomId = `${tourneyId}_${m.id}`;
+      rooms[matchRoomId] = {
+        id: matchRoomId,
+        tourneyId,
+        matchId: m.id,
+        maxPerTeam: 1,
+        players: [
+          { id: m.p1.id, name: m.p1.name, team: "A", hp: 100, points: 0 },
+          { id: m.p2.id, name: m.p2.name, team: "B", hp: 100, points: 0 }
+        ],
+        status: "playing"
+      };
+
+      const socketP1 = io.sockets.sockets.get(m.p1.id);
+      const socketP2 = io.sockets.sockets.get(m.p2.id);
+
+      if (socketP1) { socketP1.join(matchRoomId); socketP1.roomId = matchRoomId; socketP1.emit("joined", { player: rooms[matchRoomId].players[0], room: rooms[matchRoomId] }); }
+      if (socketP2) { socketP2.join(matchRoomId); socketP2.roomId = matchRoomId; socketP2.emit("joined", { player: rooms[matchRoomId].players[1], room: rooms[matchRoomId] }); }
+
+      io.to(matchRoomId).emit("battle_start");
+      io.to(matchRoomId).emit("room_state", rooms[matchRoomId]);
+    });
+  }
+
+  function handleTourneyMatchEnd(tourneyId, matchId, winnerPlayer) {
+    const tourney = tourneys[tourneyId];
+    if (!tourney) return;
+
+    const currentMatches = tourney.bracket[tourney.currentRound];
+    const match = currentMatches.find(m => m.id === matchId);
+    if (match) match.winner = winnerPlayer;
+
+    io.to(tourneyId).emit("tourney_update", tourney);
+
+    // Verificar se todos os jogos da rodada finalizaram
+    const allFinished = currentMatches.every(m => m.winner !== null);
+    if (allFinished) {
+      const winners = currentMatches.map(m => m.winner);
+      if (winners.length === 1) {
+        io.to(tourneyId).emit("tourney_champion", { winner: winners[0] });
+      } else {
+        tourney.currentRound++;
+        const nextMatches = [];
+        for (let i = 0; i < winners.length; i += 2) {
+          nextMatches.push({
+            id: `M_${tourney.currentRound}_${i / 2}`,
+            p1: winners[i],
+            p2: winners[i + 1],
+            winner: null
+          });
+        }
+        tourney.bracket.push(nextMatches);
+        setTimeout(() => launchTourneyMatches(tourneyId), 4000);
+      }
+    }
+  }
+
   socket.on("disconnect", () => {
     const room = rooms[socket.roomId];
     if (room) {
       room.players = room.players.filter(p => p.id !== socket.id);
-
       if (room.players.length === 0) {
         delete rooms[socket.roomId];
       } else {
