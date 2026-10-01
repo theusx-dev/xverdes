@@ -3,12 +3,21 @@ import http from "http";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
+// Configuração do caminho da pasta public
+const publicPath = path.join(__dirname, "public");
+
+// Verifica se a pasta public existe no servidor
+if (!fs.existsSync(publicPath)) {
+  console.error("❌ ERRO: A pasta 'public' não existe. Crie uma pasta chamada 'public' e coloque o 'index.html' dentro dela.");
+}
 
 const io = new Server(server, {
   cors: {
@@ -17,10 +26,17 @@ const io = new Server(server, {
   }
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+// Serve os arquivos estáticos (HTML, CSS, JS)
+app.use(express.static(publicPath));
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+// Rota principal para garantir a entrega do index.html
+app.get("*", (req, res) => {
+  const indexPath = path.join(publicPath, "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send("Erro: Arquivo public/index.html não foi encontrado no servidor.");
+  }
 });
 
 const rooms = {};
@@ -31,7 +47,7 @@ const DAMAGES = { pequeno: 15, medio: 35, grande: 80 };
 
 function getRankTitle(mmr) {
   if (mmr < 200) return "🟤 Ferro";
-  if (mmr < 400) return "⚪ Bronzear";
+  if (mmr < 400) return "⚪ Bronze";
   if (mmr < 600) return "🔘 Prata";
   if (mmr < 800) return "🟡 Ouro";
   if (mmr < 1000) return "🩵 Platina";
@@ -129,7 +145,6 @@ io.on("connection", (socket) => {
     if (!teamAAlive || !teamBAlive) {
       room.status = "ended";
       const winnerTeam = teamAAlive ? "A" : "B";
-      const winnerText = winnerTeam === "A" ? "Time A" : "Time B";
 
       // Lógica de Ganho/Perda de Ranque (MMR)
       if (room.isRanked) {
@@ -148,10 +163,13 @@ io.on("connection", (socket) => {
 
       // Notifica Torneio se a partida pertence a uma chave
       if (room.tourneyId) {
-        handleTourneyMatchEnd(room.tourneyId, room.matchId, winnerTeam === "A" ? room.players.find(p=>p.team==='A') : room.players.find(p=>p.team==='B'));
+        const winnerPlayer = winnerTeam === "A" 
+          ? room.players.find(p => p.team === 'A') 
+          : room.players.find(p => p.team === 'B');
+        handleTourneyMatchEnd(room.tourneyId, room.matchId, winnerPlayer);
       }
 
-      io.to(room.id).emit("battle_end", { winnerText });
+      io.to(room.id).emit("battle_end", { winnerText: winnerTeam === "A" ? "Time A" : "Time B" });
     }
 
     io.to(room.id).emit("players_update", room);
@@ -162,7 +180,7 @@ io.on("connection", (socket) => {
     const tourneyId = "TORNEIO_" + Math.random().toString(36).slice(2, 7).toUpperCase();
     tourneys[tourneyId] = {
       id: tourneyId,
-      size: parseInt(size) || 4, // 4 ou 8 jogadores
+      size: parseInt(size) || 4,
       players: [{ id: socket.id, name: name || "Jogador 1" }],
       bracket: [],
       currentRound: 0,
@@ -194,7 +212,6 @@ io.on("connection", (socket) => {
     const tourney = tourneys[tourneyId];
     tourney.status = "in_progress";
 
-    // Embaralhar e criar confrontos da Primeira Rodada
     const shuffled = [...tourney.players].sort(() => Math.random() - 0.5);
     const matches = [];
 
@@ -233,8 +250,16 @@ io.on("connection", (socket) => {
       const socketP1 = io.sockets.sockets.get(m.p1.id);
       const socketP2 = io.sockets.sockets.get(m.p2.id);
 
-      if (socketP1) { socketP1.join(matchRoomId); socketP1.roomId = matchRoomId; socketP1.emit("joined", { player: rooms[matchRoomId].players[0], room: rooms[matchRoomId] }); }
-      if (socketP2) { socketP2.join(matchRoomId); socketP2.roomId = matchRoomId; socketP2.emit("joined", { player: rooms[matchRoomId].players[1], room: rooms[matchRoomId] }); }
+      if (socketP1) {
+        socketP1.join(matchRoomId);
+        socketP1.roomId = matchRoomId;
+        socketP1.emit("joined", { player: rooms[matchRoomId].players[0], room: rooms[matchRoomId] });
+      }
+      if (socketP2) {
+        socketP2.join(matchRoomId);
+        socketP2.roomId = matchRoomId;
+        socketP2.emit("joined", { player: rooms[matchRoomId].players[1], room: rooms[matchRoomId] });
+      }
 
       io.to(matchRoomId).emit("battle_start");
       io.to(matchRoomId).emit("room_state", rooms[matchRoomId]);
@@ -251,7 +276,6 @@ io.on("connection", (socket) => {
 
     io.to(tourneyId).emit("tourney_update", tourney);
 
-    // Verificar se todos os jogos da rodada finalizaram
     const allFinished = currentMatches.every(m => m.winner !== null);
     if (allFinished) {
       const winners = currentMatches.map(m => m.winner);
@@ -289,5 +313,5 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Servidor Xverdes rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor Xverdes rodando na porta ${PORT}`);
 });
