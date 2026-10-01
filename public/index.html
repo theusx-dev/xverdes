@@ -81,7 +81,6 @@
       margin: 15px 0;
       color: #737380;
       font-size: 0.85rem;
-      position: relative;
     }
     .hidden {
       display: none;
@@ -131,23 +130,23 @@
 
   <h1>🌪️ Xverdes Multiplayer</h1>
 
-  <!-- TELA DE LOGIN / MODOS DE JOGO -->
+  <!-- TELA DE LOGIN / SALA -->
   <div id="setup-screen" class="card">
     <label for="username">Seu Nome:</label>
     <input type="text" id="username" placeholder="Ex: Jogador 1" value="Jogador">
 
-    <!-- BOTAO ACHAR PARTIDA SEM CODIGO -->
-    <button id="btn-find-match" class="btn-find">🔍 Achar Partida Rapidamente</button>
+    <!-- NOVO BOTAO PARA PROCURAR PARTIDA AUTOMATICA -->
+    <button id="btn-find-match" class="btn-find">🔍 Achar Partida</button>
 
     <div id="searching-box" class="hidden">
       <div class="searching-status" id="searching-msg">Procurando oponente...</div>
       <button id="btn-cancel-search" class="btn-cancel">Cancelar Busca</button>
     </div>
 
-    <div class="divider">OU ENTRE COM UM CÓDIGO</div>
+    <div class="divider">OU ENTRE COM CÓDIGO DE SALA</div>
 
     <label for="room-id">Código da Sala:</label>
-    <input type="text" id="room-id" placeholder="Ex: SALA123">
+    <input type="text" id="room-id" placeholder="Ex: SALA123" value="SALA123">
 
     <button id="btn-join">Entrar na Sala</button>
   </div>
@@ -198,7 +197,7 @@
 
     let myPlayerId = null;
 
-    // --- PROCURAR PARTIDA RAPIDA ---
+    // ACHAR PARTIDA SEM CODIGO
     btnFindMatch.addEventListener("click", () => {
       const name = usernameInput.value.trim();
       socket.emit("find_match", { name });
@@ -219,7 +218,7 @@
       }
     });
 
-    // --- ENTRAR VIA CODIGO ---
+    // ENTRAR VIA CODIGO
     btnJoin.addEventListener("click", () => {
       const name = usernameInput.value.trim();
       const roomId = roomIdInput.value.trim();
