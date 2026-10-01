@@ -1,19 +1,17 @@
 {
   "name": "xverdes-multiplayer",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "Jogo Multiplayer de Batalha de Tornados Xverdes",
   "type": "module",
+  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "express": "^5.2.1",
-    "socket.io": "^4.8.4"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   },
-  "description": "1. Instale Node.js. 2. Abra o terminal nesta pasta. 3. Rode `npm install` 4. Rode `npm start` 5. Abra `http://localhost:3000` 6. Abra em duas abas/janelas e use o mesmo código de sala.",
-  "main": "server.js",
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
