@@ -11,11 +11,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 
-// Configuração do caminho da pasta public
 const publicPath = path.join(__dirname, "public");
 
 if (!fs.existsSync(publicPath)) {
-  console.error("❌ ERRO: A pasta 'public' não existe. Crie uma pasta chamada 'public' e coloque o 'index.html' dentro dela.");
+  console.error("ERRO: A pasta 'public' nao existe. Crie a pasta 'public' e insira o 'index.html' dentro dela.");
 }
 
 const io = new Server(server, {
@@ -32,88 +31,67 @@ app.get("*", (req, res) => {
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).send("Erro: Arquivo public/index.html não foi encontrado no servidor.");
+    res.status(404).send("Erro: Arquivo public/index.html nao foi encontrado no servidor.");
   }
 });
 
 const rooms = {};
 const tourneys = {};
-let matchmakingQueue = [];
 
-const COSTS = { pequeno: 25, medio: 100, grande: 300 };
-const DAMAGES = { pequeno: 15, medio: 35, grande: 80 };
+const COSTS = { pequeno: 25, medio: 100, grande: 300, supremo: 500 };
+const DAMAGES = { pequeno: 15, medio: 35, grande: 80, supremo: 120 };
 
 function getRankTitle(mmr) {
-  if (mmr < 200) return "🟤 Ferro";
-  if (mmr < 400) return "⚪ Bronze";
-  if (mmr < 600) return "🔘 Prata";
-  if (mmr < 800) return "🟡 Ouro";
-  if (mmr < 1000) return "🩵 Platina";
-  if (mmr < 1300) return "💎 Diamante";
-  return "🔥 Desafiante";
+  if (mmr < 200) return "Ferro";
+  if (mmr < 400) return "Bronze";
+  if (mmr < 600) return "Prata";
+  if (mmr < 800) return "Ouro";
+  if (mmr < 1000) return "Platina";
+  if (mmr < 1300) return "Diamante";
+  return "Desafiante";
+}
+
+function triggerWeatherEvent(roomId) {
+  const room = rooms[roomId];
+  if (!room || room.status !== "playing") return;
+
+  const events = ["tempestade", "vendaval"];
+  const selectedEvent = events[Math.floor(Math.random() * events.length)];
+
+  if (selectedEvent === "tempestade") {
+    room.doublePoints = true;
+    io.to(roomId).emit("weather_event", {
+      name: "Tempestade de Pontos",
+      desc: "Pontos por clique dobrados por 10 segundos!"
+    });
+    setTimeout(() => {
+      if (rooms[roomId]) rooms[roomId].doublePoints = false;
+      io.to(roomId).emit("weather_event_end", "A tempestade passou.");
+    }, 10000);
+  } else if (selectedEvent === "vendaval") {
+    io.to(roomId).emit("weather_event", {
+      name: "Vendaval Severo",
+      desc: "Ventos fortes causando dano a todos os jogadores!"
+    });
+    let ticks = 0;
+    const interval = setInterval(() => {
+      if (!rooms[roomId] || rooms[roomId].status !== "playing" || ticks >= 5) {
+        clearInterval(interval);
+        return;
+      }
+      rooms[roomId].players.forEach(p => {
+        if (p.hp > 0) p.hp = Math.max(0, p.hp - 5);
+      });
+      io.to(roomId).emit("players_update", rooms[roomId]);
+      ticks++;
+    }, 1000);
+  }
 }
 
 io.on("connection", (socket) => {
 
-  // --- FILA DE MATCHMAKING (ACHAR PARTIDA) ---
-  socket.on("find_match", ({ name, mmr }) => {
-    if (matchmakingQueue.some(p => p.id === socket.id)) return;
-
-    const playerWaiting = {
-      id: socket.id,
-      name: name || "Jogador",
-      mmr: mmr || 100,
-      socket
-    };
-
-    matchmakingQueue.push(playerWaiting);
-    socket.emit("queue_status", { inQueue: true, message: "Procurando oponente..." });
-
-    if (matchmakingQueue.length >= 2) {
-      const p1 = matchmakingQueue.shift();
-      const p2 = matchmakingQueue.shift();
-
-      const roomId = "AUTO_" + Math.random().toString(36).slice(2, 7).toUpperCase();
-
-      rooms[roomId] = {
-        id: roomId,
-        maxPerTeam: 1,
-        isRanked: false,
-        players: [
-          { id: p1.id, name: p1.name, team: "A", hp: 100, points: 0, mmr: p1.mmr },
-          { id: p2.id, name: p2.name, team: "B", hp: 100, points: 0, mmr: p2.mmr }
-        ],
-        status: "playing"
-      };
-
-      const socket1 = p1.socket;
-      const socket2 = p2.socket;
-
-      if (socket1) {
-        socket1.join(roomId);
-        socket1.roomId = roomId;
-        socket1.emit("joined", { player: rooms[roomId].players[0], room: rooms[roomId] });
-      }
-
-      if (socket2) {
-        socket2.join(roomId);
-        socket2.roomId = roomId;
-        socket2.emit("joined", { player: rooms[roomId].players[1], room: rooms[roomId] });
-      }
-
-      io.to(roomId).emit("battle_start");
-      io.to(roomId).emit("room_state", rooms[roomId]);
-    }
-  });
-
-  socket.on("cancel_search", () => {
-    matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
-    socket.emit("queue_status", { inQueue: false, message: "Busca cancelada." });
-  });
-
-  // --- MODO SALA PADRÃO VIA CÓDIGO & RANQUEADO ---
   socket.on("join_room", ({ name, roomId, maxPerTeam, isRanked, mmr }) => {
-    if (!roomId) return socket.emit("error_message", "Código da sala é obrigatório.");
+    if (!roomId) return socket.emit("error_message", "Codigo da sala e obrigatorio.");
 
     if (!rooms[roomId]) {
       rooms[roomId] = {
@@ -121,14 +99,15 @@ io.on("connection", (socket) => {
         maxPerTeam: maxPerTeam || 1,
         isRanked: !!isRanked,
         players: [],
-        status: "waiting"
+        status: "waiting",
+        doublePoints: false
       };
     }
 
     const room = rooms[roomId];
 
     if (room.players.length >= room.maxPerTeam * 2) {
-      return socket.emit("error_message", "Esta sala já está cheia!");
+      return socket.emit("error_message", "Esta sala ja esta cheia!");
     }
 
     const countA = room.players.filter(p => p.team === "A").length;
@@ -141,7 +120,8 @@ io.on("connection", (socket) => {
       team,
       hp: 100,
       points: 0,
-      mmr: mmr || 100
+      mmr: mmr || 100,
+      shieldActive: false
     };
 
     room.players.push(player);
@@ -153,6 +133,10 @@ io.on("connection", (socket) => {
     if (room.players.length === room.maxPerTeam * 2) {
       room.status = "playing";
       io.to(roomId).emit("battle_start");
+
+      room.weatherTimer = setInterval(() => {
+        triggerWeatherEvent(roomId);
+      }, 20000);
     }
 
     io.to(roomId).emit("room_state", room);
@@ -164,9 +148,31 @@ io.on("connection", (socket) => {
 
     const player = room.players.find(p => p.id === socket.id);
     if (player && player.hp > 0) {
-      player.points += 1;
+      player.points += room.doublePoints ? 2 : 1;
       io.to(room.id).emit("players_update", room);
     }
+  });
+
+  socket.on("activate_shield", () => {
+    const room = rooms[socket.roomId];
+    if (!room || room.status !== "playing") return;
+
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player || player.hp <= 0 || player.points < 150 || player.shieldActive) return;
+
+    player.points -= 150;
+    player.shieldActive = true;
+
+    io.to(room.id).emit("players_update", room);
+    io.to(socket.id).emit("shield_status", true);
+
+    setTimeout(() => {
+      if (player) {
+        player.shieldActive = false;
+        io.to(socket.id).emit("shield_status", false);
+        if (rooms[socket.roomId]) io.to(room.id).emit("players_update", rooms[socket.roomId]);
+      }
+    }, 5000);
   });
 
   socket.on("summon", ({ type, skin }) => {
@@ -175,7 +181,7 @@ io.on("connection", (socket) => {
 
     const player = room.players.find(p => p.id === socket.id);
     const cost = COSTS[type];
-    const damage = DAMAGES[type];
+    let damage = DAMAGES[type];
 
     if (!player || player.hp <= 0 || player.points < cost) return;
 
@@ -184,10 +190,15 @@ io.on("connection", (socket) => {
     const enemies = room.players.filter(p => p.team !== player.team && p.hp > 0);
     if (enemies.length > 0) {
       const target = enemies[Math.floor(Math.random() * enemies.length)];
+      
+      if (target.shieldActive) {
+        damage = Math.floor(damage * 0.5);
+      }
+
       target.hp = Math.max(0, target.hp - damage);
     }
 
-    const sizes = { pequeno: 40, medio: 70, grande: 110 };
+    const sizes = { pequeno: 40, medio: 70, grande: 110, supremo: 160 };
     io.to(room.id).emit("tornado", {
       size: sizes[type] || 50,
       skin: skin || "skin-default"
@@ -198,21 +209,31 @@ io.on("connection", (socket) => {
 
     if (!teamAAlive || !teamBAlive) {
       room.status = "ended";
+      if (room.weatherTimer) clearInterval(room.weatherTimer);
+
       const winnerTeam = teamAAlive ? "A" : "B";
 
-      if (room.isRanked) {
-        room.players.forEach(p => {
-          const isWinner = p.team === winnerTeam;
-          const mmrChange = isWinner ? 30 : -20;
+      room.players.forEach(p => {
+        const isWinner = p.team === winnerTeam;
+        const coinsEarned = isWinner ? 100 : 30;
+
+        let mmrChange = 0;
+        let newRank = getRankTitle(p.mmr);
+
+        if (room.isRanked) {
+          mmrChange = isWinner ? 30 : -20;
           p.mmr = Math.max(0, p.mmr + mmrChange);
-          io.to(p.id).emit("ranked_result", {
-            won: isWinner,
-            change: mmrChange,
-            newMmr: p.mmr,
-            newRank: getRankTitle(p.mmr)
-          });
+          newRank = getRankTitle(p.mmr);
+        }
+
+        io.to(p.id).emit("match_reward", {
+          won: isWinner,
+          coins: coinsEarned,
+          mmrChange,
+          newMmr: p.mmr,
+          newRank
         });
-      }
+      });
 
       if (room.tourneyId) {
         const winnerPlayer = winnerTeam === "A" 
@@ -227,7 +248,6 @@ io.on("connection", (socket) => {
     io.to(room.id).emit("players_update", room);
   });
 
-  // --- MODO CAMPEONATO ELIMINATÓRIO (MATA-MATA) ---
   socket.on("create_tourney", ({ name, size }) => {
     const tourneyId = "TORNEIO_" + Math.random().toString(36).slice(2, 7).toUpperCase();
     tourneys[tourneyId] = {
@@ -245,8 +265,8 @@ io.on("connection", (socket) => {
 
   socket.on("join_tourney", ({ name, tourneyId }) => {
     const tourney = tourneys[tourneyId];
-    if (!tourney) return socket.emit("error_message", "Campeonato não encontrado!");
-    if (tourney.status !== "waiting") return socket.emit("error_message", "Campeonato já começou!");
+    if (!tourney) return socket.emit("error_message", "Campeonato nao encontrado!");
+    if (tourney.status !== "waiting") return socket.emit("error_message", "Campeonato ja comecou!");
     if (tourney.players.length >= tourney.size) return socket.emit("error_message", "Campeonato lotado!");
 
     tourney.players.push({ id: socket.id, name: name || `Jogador ${tourney.players.length + 1}` });
@@ -351,12 +371,11 @@ io.on("connection", (socket) => {
   }
 
   socket.on("disconnect", () => {
-    matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
-
     const room = rooms[socket.roomId];
     if (room) {
       room.players = room.players.filter(p => p.id !== socket.id);
       if (room.players.length === 0) {
+        if (room.weatherTimer) clearInterval(room.weatherTimer);
         delete rooms[socket.roomId];
       } else {
         io.to(room.id).emit("room_state", room);
@@ -367,5 +386,5 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor Xverdes rodando na porta ${PORT}`);
+  console.log(`Servidor Xverdes rodando na porta ${PORT}`);
 });
